@@ -1,0 +1,138 @@
+---
+author: Colin Eberhardt
+tags: Windows Phone 7
+permalink: /blog/colin/2011/12/a-windows-phone-7-slide-view-with-page-pips/index.html
+layout: colineberhardt-blog
+---
+<div class="entry"><div class="topsy_widget_data topsy_theme_light-green" style="float: right; margin-left: 0.75em; background: url(data:,%7B%20%22url%22%3A%20%22http%253A%252F%252Fwww.scottlogic.co.uk%252Fblog%252Fcolin%252F2011%252F12%252Fa-windows-phone-7-slide-view-with-page-pips%252F%22%2C%20%22style%22%3A%20%22big%22%2C%20%22title%22%3A%20%22A%20Windows%20Phone%207%20Slide%20View%20with%20Page%20Pips%20%23%22%20%7D);"></div><p>A popular user-interface in the iOS world is the <a href="http://developer.apple.com/library/ios/#documentation/uikit/reference/UIPageControl_Class/Reference/Reference.html">UIPageControl</a> which renders a small set of dots to indicate the number of pages, with the current page highlighted in some way. This is often used in conjunction with a <code>UIScrollView</code> to navigate between pages in a multi-page layout.</p><p>Windows Phone 7 has a Pivot control which allows you to swipe in order to navigate content across multiple screens. However, the Pivot control is most often used when each ‘page’ has some logic header – in some ways it is analogous to a desktop tab control. I decided to use this control, without specifying headers for each PivotItem, then add my own control to render the ‘pips’.</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2011/12/SlideView.png" alt="" title="SlideView" width="630" height="222" class="aligncenter size-full wp-image-1868" /></p><p>The control that displays the location pips is defined in XAML, with the relationship between this control and the Pivot created via an <code>ElementName</code> binding:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;local:PivotLocationView</span> <span style="color: #000066;">Source</span>=<span style="color: #ff0000;">"{Binding ElementName=pivot}"</span></span>
+<span style="color: #009900;">                          <span style="color: #000066;">HorizontalAlignment</span>=<span style="color: #ff0000;">"Center"</span></span>
+<span style="color: #009900;">                          <span style="color: #000066;">VerticalAlignment</span>=<span style="color: #ff0000;">"Bottom"</span></span>
+<span style="color: #009900;">                          <span style="color: #000066;">Margin</span>=<span style="color: #ff0000;">"0,0,0,10"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+&nbsp;
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;controls:Pivot</span> <span style="color: #000066;">Margin</span>=<span style="color: #ff0000;">"0,-30,0,40"</span> </span>
+<span style="color: #009900;">                <span style="color: #000066;">x:Name</span>=<span style="color: #ff0000;">"pivot"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;controls:PivotItem<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    ...
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/controls:PivotItem<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;controls:PivotItem<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    ...
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/controls:PivotItem<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;controls:PivotItem<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    ...
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/controls:PivotItem<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/controls:Pivot<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><p>Note the negative top margin for the Pivot, this control still allocates some header space, even when no headers are defined.</p><p>The <code>PivotLocationView</code> user control is backed by a simple view model, with model-items for each pip. When the view model is associated with a <code>Pivot</code> control, it creates a child view model for each Pivot Item, then handles the <code>SelectionChanged</code> event in order to keep the selection state synchronized:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> PivotLocationViewModel
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> Pivot _pivot<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> PivotLocationViewModel<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> PivotLocationViewModel<span style="color: #008000;">(</span>Pivot pivot<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    PivotItems <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> PivotItemViewModelCollection<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    SetPivot<span style="color: #008000;">(</span>pivot<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Gets or sets the collection of child view-models</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> PivotItemViewModelCollection PivotItems <span style="color: #008000;">{</span> <span style="color: #0600FF; font-weight: bold;">get</span><span style="color: #008000;">;</span> <span style="color: #0600FF; font-weight: bold;">set</span><span style="color: #008000;">;</span> <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> SetPivot<span style="color: #008000;">(</span>Pivot pivot<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    _pivot <span style="color: #008000;">=</span> pivot<span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// handle selection changed</span>
+    pivot<span style="color: #008000;">.</span><span style="color: #0000FF;">SelectionChanged</span> <span style="color: #008000;">+=</span> Pivot_SelectionChanged<span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// create a view model for each pivot item.</span>
+    <span style="color: #0600FF; font-weight: bold;">for</span><span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">int</span> i<span style="color: #008000;">=</span><span style="color: #FF0000;">0</span><span style="color: #008000;">;</span>i<span style="color: #008000;">&lt;</span>pivot<span style="color: #008000;">.</span><span style="color: #0000FF;">Items</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Count</span><span style="color: #008000;">;</span>i<span style="color: #008000;">++</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      PivotItems<span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span><span style="color: #008000;">new</span> PivotItemViewModel<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// set the initial selection</span>
+    PivotItems<span style="color: #008000;">[</span>_pivot<span style="color: #008000;">.</span><span style="color: #0000FF;">SelectedIndex</span><span style="color: #008000;">]</span><span style="color: #008000;">.</span><span style="color: #0000FF;">IsSelected</span> <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Handle selection changes to update the view model</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span>  Pivot_SelectionChanged<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, SelectionChangedEventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+ 	  <span style="color: #0600FF; font-weight: bold;">var</span> selectedModel <span style="color: #008000;">=</span> PivotItems<span style="color: #008000;">.</span><span style="color: #0000FF;">SingleOrDefault</span><span style="color: #008000;">(</span>p <span style="color: #008000;">=&gt;</span> p<span style="color: #008000;">.</span><span style="color: #0000FF;">IsSelected</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>selectedModel <span style="color: #008000;">!=</span> <span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">)</span>
+      selectedModel<span style="color: #008000;">.</span><span style="color: #0000FF;">IsSelected</span> <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">false</span><span style="color: #008000;">;</span>
+&nbsp;
+    PivotItems<span style="color: #008000;">[</span>_pivot<span style="color: #008000;">.</span><span style="color: #0000FF;">SelectedIndex</span><span style="color: #008000;">]</span><span style="color: #008000;">.</span><span style="color: #0000FF;">IsSelected</span> <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>The view model for each pivot item is a simple model that implements <code>INotifyPropertyChanged</code>. It has an IsSelected property that reflects the selection state of the <code>Pivot</code>, it also exposes a <code>Color </code>property that indicates the color for each ‘pip’. This could have been implemented as a value converter, but there is little point as we already have a view model:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// A view model for each 'pip'</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> PivotItemViewModel <span style="color: #008000;">:</span> INotifyPropertyChanged
+<span style="color: #008000;">{</span>
+  <span style="color: #008080; font-style: italic;">// ... INotifyPropertyChanged implementation</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">bool</span> _isSelected<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">bool</span> IsSelected
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">get</span> <span style="color: #008000;">{</span> <span style="color: #0600FF; font-weight: bold;">return</span> _isSelected<span style="color: #008000;">;</span> <span style="color: #008000;">}</span>
+    <span style="color: #0600FF; font-weight: bold;">set</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>_isSelected <span style="color: #008000;">==</span> <span style="color: #0600FF; font-weight: bold;">value</span><span style="color: #008000;">)</span>
+        <span style="color: #0600FF; font-weight: bold;">return</span><span style="color: #008000;">;</span>
+&nbsp;
+      _isSelected <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">value</span><span style="color: #008000;">;</span>
+      OnPropertyChanged<span style="color: #008000;">(</span><span style="color: #666666;">"IsSelected"</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+      Color <span style="color: #008000;">=</span> IsSelected <span style="color: #008000;">?</span> Colors<span style="color: #008000;">.</span><span style="color: #0000FF;">Black</span> <span style="color: #008000;">:</span> Colors<span style="color: #008000;">.</span><span style="color: #0000FF;">White</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> Color _color<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> Color Color
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">get</span> <span style="color: #008000;">{</span> <span style="color: #0600FF; font-weight: bold;">return</span> _color<span style="color: #008000;">;</span> <span style="color: #008000;">}</span>
+    <span style="color: #0600FF; font-weight: bold;">set</span>
+    <span style="color: #008000;">{</span>
+      _color <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">value</span><span style="color: #008000;">;</span>
+      OnPropertyChanged<span style="color: #008000;">(</span><span style="color: #666666;">"Color"</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>The XAML for this control is very simple, using an <code>ItemsControl</code> to render an ellipse for each ‘pip’:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;UserControl</span> ...</span>
+<span style="color: #009900;">    <span style="color: #000066;">d:DataContext</span>=<span style="color: #ff0000;">"{d:DesignData Source=PivotLocationViewModel.xml}"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Grid</span> <span style="color: #000066;">x:Name</span>=<span style="color: #ff0000;">"LayoutRoot"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ItemsControl</span> <span style="color: #000066;">ItemsSource</span>=<span style="color: #ff0000;">"{Binding PivotItems}"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ItemsControl.ItemsPanel<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ItemsPanelTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+          <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;StackPanel</span> <span style="color: #000066;">Orientation</span>=<span style="color: #ff0000;">"Horizontal"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/ItemsPanelTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/ItemsControl.ItemsPanel<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ItemsControl.ItemTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;DataTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+          <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Ellipse</span> <span style="color: #000066;">Width</span>=<span style="color: #ff0000;">"12"</span> <span style="color: #000066;">Height</span>=<span style="color: #ff0000;">"12"</span> <span style="color: #000066;">Margin</span>=<span style="color: #ff0000;">"15,0,15,0"</span></span>
+<span style="color: #009900;">                   <span style="color: #000066;">Stroke</span>=<span style="color: #ff0000;">"Black"</span></span>
+<span style="color: #009900;">                   <span style="color: #000066;">StrokeThickness</span>=<span style="color: #ff0000;">"0.5"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+            <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Ellipse.Fill<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+              <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;SolidColorBrush</span> <span style="color: #000066;">Color</span>=<span style="color: #ff0000;">"{Binding Color}"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+            <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Ellipse.Fill<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+          <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Ellipse<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/DataTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/ItemsControl.ItemTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/ItemsControl<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Grid<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/UserControl<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><p>Note, the use of design-time data. The following file defines a view model instance:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;PivotLocationViewModel</span> <span style="color: #000066;">xmlns</span>=<span style="color: #ff0000;">"clr-namespace:SlideView"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;PivotLocationViewModel.PivotItems<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;PivotItemViewModelCollection<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;PivotItemViewModel</span> <span style="color: #000066;">IsSelected</span>=<span style="color: #ff0000;">"False"</span> <span style="color: #000066;">Color</span>=<span style="color: #ff0000;">"Red"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;PivotItemViewModel</span> <span style="color: #000066;">IsSelected</span>=<span style="color: #ff0000;">"True"</span>  <span style="color: #000066;">Color</span>=<span style="color: #ff0000;">"Green"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;PivotItemViewModel</span> <span style="color: #000066;">IsSelected</span>=<span style="color: #ff0000;">"False"</span>  <span style="color: #000066;">Color</span>=<span style="color: #ff0000;">"Red"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;PivotItemViewModel</span> <span style="color: #000066;">IsSelected</span>=<span style="color: #ff0000;">"False"</span>  <span style="color: #000066;">Color</span>=<span style="color: #ff0000;">"Red"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/PivotItemViewModelCollection<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/PivotLocationViewModel.PivotItems<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/PivotLocationViewModel<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><p>This makes creating the above user control much easier, because it can be visualised in the designer:</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2011/12/DesignTime.jpg" alt="" title="DesignTime" width="550" height="365" class="aligncenter size-full wp-image-1867" /></p><p>And there you have it, a simple user-control, which when used in conjunction with a <code>Pivot</code>, provides an interface where the user can swipe between pages.</p><p>You can download the full sourcecode: <a href="{{ site.url }}/blog/colin/wp-content/uploads/2011/12/SlideView.zip">SlideView.zip</a></p><p>Regards, Colin E. </p></div>

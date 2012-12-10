@@ -1,0 +1,89 @@
+---
+author: Colin Eberhardt
+tags: codeproject, cross-platform, silverlight, WPF
+permalink: /blog/colin/2011/01/automatically-showing-tooltips-on-a-trimmed-textblock-silverlight-wpf/index.html
+layout: colineberhardt-blog
+---
+<div class="entry"><div class="topsy_widget_data topsy_theme_light-green" style="float: right; margin-left: 0.75em; background: url(data:,%7B%20%22url%22%3A%20%22http%253A%252F%252Fwww.scottlogic.co.uk%252Fblog%252Fcolin%252F2011%252F01%252Fautomatically-showing-tooltips-on-a-trimmed-textblock-silverlight-wpf%252F%22%2C%20%22style%22%3A%20%22big%22%2C%20%22title%22%3A%20%22Automatically%20Showing%20ToolTips%20on%20a%20Trimmed%20TextBlock%20%28Silverlight%20%2B%20WPF%29%20%23%22%20%7D);"></div><p><em>Both WPF and Silverlight have a property TextTrimming=”WordEllipsis”, which trims the text that a TextBlock displays based on the available width. This blog post describes a simple method for automatically showing the full text as a tooltip whenever the text is trimmed. This is presented as an attached behaviour and works in both WPF and Silverlight</em></p><p>A few weeks ago I blogged about a Silverlight solution for <a href="{{ site.url }}/blog/colin/2011/01/showing-tooltips-on-trimmed-textblock-silverlight/">automatically adding tooltips when a TextBlock Text is trimmed</a> and renders an ellipsis. I found a decent looking WPF solutions on the web and linked it in my article, however, based on the comments to my previous blog post, it looks like the WPF solution didn’t work too well, failing to respect font size etc… In this blog post I have updated my solution to be cross-platform, working on WPF <strong>and</strong> Silverlight.</p><p>To briefly recap, my solution for automatically adding tooltips to trimmed text relies on the slightly odd behaviour of the <code>TextBlock</code> where its <code>ActualWidth</code> is reported as the width of the text without trimming:</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2011/01/TextTrimming.png" alt="" title="TextTrimming" width="568" height="257" class="aligncenter size-full wp-image-1076" /></p><p>In order to determine whether to show a tooltip, all you have to do is compare the <code>ActualWidth</code> of the <code>TextBlock</code> to the <code>ActualWidth</code> of its parent.</p><p>However, the WPF <code>TextBlock</code> does not have this same quirky behaviour, so a completely different approach is required. The other solutions I have seen involve using the low-level WPF drawing APIs to compute the size of the rendered text, however, there is a simpler solution to this problem …</p><p><strong>UPDATE:</strong> I originally wrote about a method of finding the overall text width from various internal fields within the <code>TextBlock</code> via reflection, as shown below. However, a kind reader of my blog, <strong>Daniel Fihnn</strong>, pointed out that there is a simpler solution that does not require any reflection.</p><p><a href="{{ site.url }}/blog/colin/wp-content/uploads/2011/01/TextBlockInternal.png"><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2011/01/TextBlockInternal-300x128.png" alt="" title="TextBlockInternal" width="300" height="128" class="aligncenter size-medium wp-image-1176" /></a></p><p>Daniel pointed out that the width of the TextBlock without the trimming can be obtained using the <code>Measure</code> method. This method is typically used by panels during layout, the <code>Measure</code> method is invoked with the size made available to the element, calling this method causes the element to update its <code>DesiredSize</code> property. Therefore, if you invoke <code>Measure</code> on a <code>TextBlock</code> which has trimming enabled, giving it an infinite available space, its <code>DesiredSize</code> property will report the width that the text would occupy without trimming.</p><p>The <code>ComputeAutoTooltip</code> method of the attached behaviour I described in my previous post is updated to have a completely different WPF implementation:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> TextBlockUtils
+<span style="color: #008000;">{</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Gets the value of the AutoTooltipProperty dependency property</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">bool</span> GetAutoTooltip<span style="color: #008000;">(</span>DependencyObject obj<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">bool</span><span style="color: #008000;">)</span>obj<span style="color: #008000;">.</span><span style="color: #0000FF;">GetValue</span><span style="color: #008000;">(</span>AutoTooltipProperty<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Sets the value of the AutoTooltipProperty dependency property</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">void</span> SetAutoTooltip<span style="color: #008000;">(</span>DependencyObject obj, <span style="color: #6666cc; font-weight: bold;">bool</span> <span style="color: #0600FF; font-weight: bold;">value</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    obj<span style="color: #008000;">.</span><span style="color: #0000FF;">SetValue</span><span style="color: #008000;">(</span>AutoTooltipProperty, <span style="color: #0600FF; font-weight: bold;">value</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Identified the attached AutoTooltip property. When true, this will set the TextBlock TextTrimming</span>
+  <span style="color: #008080; font-style: italic;">/// property to WordEllipsis, and display a tooltip with the full text whenever the text is trimmed.</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #0600FF; font-weight: bold;">readonly</span> DependencyProperty AutoTooltipProperty <span style="color: #008000;">=</span> DependencyProperty<span style="color: #008000;">.</span><span style="color: #0000FF;">RegisterAttached</span><span style="color: #008000;">(</span><span style="color: #666666;">"AutoTooltip"</span>,
+          <span style="color: #008000;">typeof</span><span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">bool</span><span style="color: #008000;">)</span>, <span style="color: #008000;">typeof</span><span style="color: #008000;">(</span>TextBlockUtils<span style="color: #008000;">)</span>, <span style="color: #008000;">new</span> PropertyMetadata<span style="color: #008000;">(</span><span style="color: #0600FF; font-weight: bold;">false</span>, OnAutoTooltipPropertyChanged<span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">void</span> OnAutoTooltipPropertyChanged<span style="color: #008000;">(</span>DependencyObject d, DependencyPropertyChangedEventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    TextBlock textBlock <span style="color: #008000;">=</span> d <span style="color: #0600FF; font-weight: bold;">as</span> TextBlock<span style="color: #008000;">;</span>
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>textBlock <span style="color: #008000;">==</span> <span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">)</span>
+      <span style="color: #0600FF; font-weight: bold;">return</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>e<span style="color: #008000;">.</span><span style="color: #0000FF;">NewValue</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Equals</span><span style="color: #008000;">(</span><span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      textBlock<span style="color: #008000;">.</span><span style="color: #0000FF;">TextTrimming</span> <span style="color: #008000;">=</span> TextTrimming<span style="color: #008000;">.</span><span style="color: #0000FF;">WordEllipsis</span><span style="color: #008000;">;</span>
+      ComputeAutoTooltip<span style="color: #008000;">(</span>textBlock<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      textBlock<span style="color: #008000;">.</span><span style="color: #0000FF;">SizeChanged</span> <span style="color: #008000;">+=</span> TextBlock_SizeChanged<span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+    <span style="color: #0600FF; font-weight: bold;">else</span>
+    <span style="color: #008000;">{</span>
+      textBlock<span style="color: #008000;">.</span><span style="color: #0000FF;">SizeChanged</span> <span style="color: #008000;">-=</span> TextBlock_SizeChanged<span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">void</span> TextBlock_SizeChanged<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, SizeChangedEventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    TextBlock textBlock <span style="color: #008000;">=</span> sender <span style="color: #0600FF; font-weight: bold;">as</span> TextBlock<span style="color: #008000;">;</span>
+    ComputeAutoTooltip<span style="color: #008000;">(</span>textBlock<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Assigns the ToolTip for the given TextBlock based on whether the text is trimmed</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">void</span> ComputeAutoTooltip<span style="color: #008000;">(</span>TextBlock textBlock<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+<span style="color: #008080;">#if WPF</span>
+    textBlock<span style="color: #008000;">.</span><span style="color: #0000FF;">Measure</span><span style="color: #008000;">(</span><span style="color: #008000;">new</span> Size<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">Double</span><span style="color: #008000;">.</span><span style="color: #0000FF;">PositiveInfinity</span>, <span style="color: #6666cc; font-weight: bold;">Double</span><span style="color: #008000;">.</span><span style="color: #0000FF;">PositiveInfinity</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #0600FF; font-weight: bold;">var</span> width <span style="color: #008000;">=</span> textBlock<span style="color: #008000;">.</span><span style="color: #0000FF;">DesiredSize</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Width</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>textBlock<span style="color: #008000;">.</span><span style="color: #0000FF;">ActualWidth</span> <span style="color: #008000;">&lt;</span> width<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      ToolTipService<span style="color: #008000;">.</span><span style="color: #0000FF;">SetToolTip</span><span style="color: #008000;">(</span>textBlock, textBlock<span style="color: #008000;">.</span><span style="color: #0000FF;">Text</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+    <span style="color: #0600FF; font-weight: bold;">else</span>
+    <span style="color: #008000;">{</span>
+      ToolTipService<span style="color: #008000;">.</span><span style="color: #0000FF;">SetToolTip</span><span style="color: #008000;">(</span>textBlock, <span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #008080;">#else</span>
+    FrameworkElement parentElement <span style="color: #008000;">=</span> VisualTreeHelper<span style="color: #008000;">.</span><span style="color: #0000FF;">GetParent</span><span style="color: #008000;">(</span>textBlock<span style="color: #008000;">)</span> <span style="color: #0600FF; font-weight: bold;">as</span> FrameworkElement<span style="color: #008000;">;</span>
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>parentElement <span style="color: #008000;">!=</span> <span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>textBlock<span style="color: #008000;">.</span><span style="color: #0000FF;">ActualWidth</span> <span style="color: #008000;">&gt;</span> parentElement<span style="color: #008000;">.</span><span style="color: #0000FF;">ActualWidth</span><span style="color: #008000;">)</span>
+      <span style="color: #008000;">{</span>
+        ToolTipService<span style="color: #008000;">.</span><span style="color: #0000FF;">SetToolTip</span><span style="color: #008000;">(</span>textBlock, textBlock<span style="color: #008000;">.</span><span style="color: #0000FF;">Text</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      <span style="color: #008000;">}</span>
+      <span style="color: #0600FF; font-weight: bold;">else</span>
+      <span style="color: #008000;">{</span>
+        ToolTipService<span style="color: #008000;">.</span><span style="color: #0000FF;">SetToolTip</span><span style="color: #008000;">(</span>textBlock, <span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      <span style="color: #008000;">}</span>
+    <span style="color: #008000;">}</span>
+<span style="color: #008080;">#endif </span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>This code now works in both a WPF and a Silverlight context. Here’s a screenshot of it working in WPF:</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2011/01/AutoTooltip.png" alt="" title="AutoTooltip" width="601" height="153" class="aligncenter size-full wp-image-1179" /></p><p>You can download the full sourcecode, including the WPF and Silverlight demo: <a href="{{ site.url }}/blog/colin/wp-content/uploads/2011/01/AutoTooltipTextBlock2.zip">AutoTooltipTextBlock.zip</a></p><p>Thanks to Daniel Fihnn for a much improved WPF version of this code!</p><p>Regards, Colin E.</p></div>

@@ -1,0 +1,287 @@
+---
+author: Colin Eberhardt
+tags: cross-platform, silverlight, Windows 8, WinRT
+permalink: /blog/colin/2011/09/tweetsearch-a-cross-platform-metro-ui-winrt-and-silverlight-application/index.html
+layout: colineberhardt-blog
+---
+<div class="entry"><div class="topsy_widget_data topsy_theme_light-green" style="float: right; margin-left: 0.75em; background: url(data:,%7B%20%22url%22%3A%20%22http%253A%252F%252Fwww.scottlogic.co.uk%252Fblog%252Fcolin%252F2011%252F09%252Ftweetsearch-a-cross-platform-metro-ui-winrt-and-silverlight-application%252F%22%2C%20%22style%22%3A%20%22big%22%2C%20%22title%22%3A%20%22TweetSearch%20-%20A%20Cross%20platform%20Metro%20UI%20WinRT%20and%20Silverlight%20Application%20%23%22%20%7D);"></div><p>With the Windows 8 preview release earlier this week, developers are now faced with a whole new and exciting Microsoft stack. The Windows 8 architecture has something of a split-personality, incorporating a completely new runtime, WinRT together with the older Win32 and .NET framework. However, these sit on different sides of a physical divide in both the architecture and the user interface. For more details of this, <a href="{{ site.url }}/blog/colin/2011/09/windows-8-an-os-of-two-halves/" title="Windows 8 – An OS of two halves.">see my earlier article</a>.</p><p>The new WinRT APIs support both C# and XAML, having an interface that is very similar to its .NET counterparts. However, there are a number of differences, most importantly much of the UI now resides in a new namespace. It is clear that transitioning from Silverlight, WP7 or WPF development to using WinRT will be quite easy.</p><p>I am sure there exists classes of application that sit best in the Win8 Metro UI, for which you will use WinRT for development. There will also be classes of application that sit best in the Win8 classic desktop, for which you will still be using WPF and Silverlight to develop.</p><p>However … there will certainly exist a class of application that sits well in <em>both</em> the Metro and Desktop environment. In the Win8 preview IE does just this. </p><p>This introduces a problem, how can we share code between our Silverlight Desktop and WinRT Metro applications?</p><p>I have previously <a href="{{ site.url }}/blog/colin/2011/07/silverlight-uk-user-group-presentation-on-cross-platform-xaml/" title="Silverlight UK User Group Presentation on Cross Platform XAML">presented talks</a> and <a href="{{ site.url }}/blog/colin/2010/10/white-paper-silverlight-wpf-and-windows-phone-7-cross-platform-development/" title="White Paper: Silverlight, WPF and Windows Phone 7 cross platform development">written articles</a> on cross-platform application development. So I thought I would grab myself a copy of the Win8 preview release and see how easy it is to code-share between a Silverlight and WinRT Metro application.</p><p>This blog post describes a simple TwitterSearch application, the Silverlight version is shown below. Simply type in a search string to see the results retrieved from twitter:</p><div style="text-align: center;"><object width="400" height="300" data="data:application/x-silverlight," type="application/x-silverlight-2"><param name="source" value="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2011/09/SilverlightTwitterApp.xap" /><a href="http://go.microsoft.com/fwlink/?LinkID=124807" style="text-decoration: none;"> <img src="http://go.microsoft.com/fwlink/?LinkId=108181" alt="Get Microsoft Silverlight" style="border-style: none;" /></a></object></div><p>A screenshot of the TwitterSearch application built for WinRT Metro is shown below:</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2011/09/MetroTwitter.png" alt="" title="MetroTwitter" width="513" height="566" class="aligncenter size-full wp-image-1678" /></p><p>When code-sharing between WPF, Silverlight and WP7 applications separation of concerns and solid design patterns are essential in order to navigate the framework differences. For that reason I use the Model-View-ViewModel pattern, this makes it easy to specialise the view for each platform, where they typically differ the most. I will use this same approach for WinRT.</p><p>The code is shared between the Silverlight and Win8 Metro application by having two separate solutions which both share files via the Visual Studio file linking feature.</p><p>The <code>TwitterSearchViewModel</code> which backs this application simply exposes a search string property and a list of tweets:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">partial</span> <span style="color: #6666cc; font-weight: bold;">class</span> TwitterSearchViewModel <span style="color: #008000;">:</span> INotifyPropertyChanged
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> TweetViewModelCollection _tweets <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> TweetViewModelCollection<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> IMarshalInvoke _marshalInvoke<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">string</span> _searchText <span style="color: #008000;">=</span> <span style="color: #666666;">"WinRT"</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> TwitterSearchViewModel<span style="color: #008000;">(</span>IMarshalInvoke marshalInvoke<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    _marshalInvoke <span style="color: #008000;">=</span> marshalInvoke<span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Gets / sets the search term</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">string</span> SearchText
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">get</span> <span style="color: #008000;">{</span>  <span style="color: #0600FF; font-weight: bold;">return</span> _searchText<span style="color: #008000;">;</span>  <span style="color: #008000;">}</span>
+    <span style="color: #0600FF; font-weight: bold;">set</span>
+    <span style="color: #008000;">{</span>
+      _searchText <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">value</span><span style="color: #008000;">;</span>
+      OnPropertyChanged<span style="color: #008000;">(</span><span style="color: #666666;">"SearchText"</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Gets the search results</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> TweetViewModelCollection Tweets
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">get</span> <span style="color: #008000;">{</span> <span style="color: #0600FF; font-weight: bold;">return</span> _tweets<span style="color: #008000;">;</span> <span style="color: #008000;">}</span>
+    <span style="color: #0600FF; font-weight: bold;">set</span> <span style="color: #008000;">{</span> _tweets <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">value</span><span style="color: #008000;">;</span> <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Gets a command that executes the search</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> ICommand ExecuteSearchCommand
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">get</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #008000;">new</span> DelegateCommand<span style="color: #008000;">(</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span> <span style="color: #008000;">=&gt;</span> ExecuteSearch<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>The <code>IMarshalInvoke</code> interface allows the view model to perform asynchronous calls via the Dispatcher, without being dependant on this UI class, more on this later.</p><p>It is here that I hit the first problem, WinRT has <code>ICommand</code>, but it lives in a different namespace! Time to add a WinRT compilation symbol to my WinRT project and throw in a pre-compiler directive:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080;">#if WINRT</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">using</span> <span style="color: #008080;">Windows.UI.Xaml.Input</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #008080;">#else</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">using</span> <span style="color: #008080;">System.Windows.Input</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #008080;">#endif</span></pre></td></tr></table></div><p>Now my view model compiles just fine. However, when I hooked it up with the view, my bindings were only working in one direction. After appealing to Twitter, the MSDN forums and the WPF Disciples, <a href="http://www.galasoft.ch/">Laurent Bugnion</a> kindly informed me that WinRT has two different INotifyPropertyChanged interfaces. One within <code>System.ComponentModel</code> and the other in <code>Windows.UI.Xaml.Data</code>, if you use the one from <code>System.ComponentModel</code> it is ignored by the WinRT binding framework. Very confusing!</p><p>Fixing this is simply a matter of adding more platform specific namespaces:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080;">#if WINRT</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">// used for ICommand</span>
+<span style="color: #0600FF; font-weight: bold;">using</span> <span style="color: #008080;">Windows.UI.Xaml.Input</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">// used for INotifyPropertyChanged</span>
+<span style="color: #0600FF; font-weight: bold;">using</span> <span style="color: #008080;">Windows.UI.Xaml.Data</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #008080;">#else</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">using</span> <span style="color: #008080;">System.ComponentModel</span><span style="color: #008000;">;</span>
+<span style="color: #0600FF; font-weight: bold;">using</span> <span style="color: #008080;">System.Windows.Input</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #008080;">#endif</span></pre></td></tr></table></div><p>My original code used <code>WebClient</code>, which is not present in WinRT. Fortunately <code>HttpWebRequest </code>is present in both, so I changed my code to use that, hence the need for the <code>IMarshalInvoke</code> interface to marshal execution back onto the UI thread.</p><p>As a result, much of the core logic, which makes use of Linq-to-XML, in the view model is shared between both applications:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Parses the response from our twitter request, creating a list of TweetViewModel instances</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> ParseXMLResponse<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span> xml<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">var</span> doc <span style="color: #008000;">=</span> XDocument<span style="color: #008000;">.</span><span style="color: #0000FF;">Parse</span><span style="color: #008000;">(</span>xml<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">var</span> items <span style="color: #008000;">=</span> doc<span style="color: #008000;">.</span><span style="color: #0000FF;">Descendants</span><span style="color: #008000;">(</span>AtomConst<span style="color: #008000;">.</span><span style="color: #0000FF;">Entry</span><span style="color: #008000;">)</span>
+                  <span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Select</span><span style="color: #008000;">(</span>entryElement <span style="color: #008000;">=&gt;</span> <span style="color: #008000;">new</span> TweetViewModel<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+                  <span style="color: #008000;">{</span>
+                    Title <span style="color: #008000;">=</span> entryElement<span style="color: #008000;">.</span><span style="color: #0000FF;">Descendants</span><span style="color: #008000;">(</span>AtomConst<span style="color: #008000;">.</span><span style="color: #0000FF;">Title</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Single</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Value</span>,
+                    Id <span style="color: #008000;">=</span> <span style="color: #6666cc; font-weight: bold;">long</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Parse</span><span style="color: #008000;">(</span>entryElement<span style="color: #008000;">.</span><span style="color: #0000FF;">Descendants</span><span style="color: #008000;">(</span>AtomConst<span style="color: #008000;">.</span><span style="color: #0000FF;">ID</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Single</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Value</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Split</span><span style="color: #008000;">(</span><span style="color: #666666;">':'</span><span style="color: #008000;">)</span><span style="color: #008000;">[</span><span style="color: #FF0000;">2</span><span style="color: #008000;">]</span><span style="color: #008000;">)</span>,
+                    ProfileImageUrl <span style="color: #008000;">=</span>  entryElement<span style="color: #008000;">.</span><span style="color: #0000FF;">Descendants</span><span style="color: #008000;">(</span>AtomConst<span style="color: #008000;">.</span><span style="color: #0000FF;">Link</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Skip</span><span style="color: #008000;">(</span><span style="color: #FF0000;">1</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0000FF;">First</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Attribute</span><span style="color: #008000;">(</span><span style="color: #666666;">"href"</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Value</span>,
+                    Timestamp <span style="color: #008000;">=</span> DateTime<span style="color: #008000;">.</span><span style="color: #0000FF;">Parse</span><span style="color: #008000;">(</span>entryElement<span style="color: #008000;">.</span><span style="color: #0000FF;">Descendants</span><span style="color: #008000;">(</span>AtomConst<span style="color: #008000;">.</span><span style="color: #0000FF;">Published</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Single</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Value</span><span style="color: #008000;">)</span>,
+                    Author <span style="color: #008000;">=</span> entryElement<span style="color: #008000;">.</span><span style="color: #0000FF;">Descendants</span><span style="color: #008000;">(</span>AtomConst<span style="color: #008000;">.</span><span style="color: #0000FF;">Name</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Single</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Value</span>
+                  <span style="color: #008000;">}</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  _tweets<span style="color: #008000;">.</span><span style="color: #0000FF;">Clear</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">foreach</span> <span style="color: #008000;">(</span><span style="color: #0600FF; font-weight: bold;">var</span> item <span style="color: #0600FF; font-weight: bold;">in</span> items<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    _tweets<span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span>item<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Searches for the given term</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> ExecuteSearch<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  IsSearching <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// perform the search</span>
+  <span style="color: #6666cc; font-weight: bold;">string</span> uri <span style="color: #008000;">=</span> _twitterUrl <span style="color: #008000;">+</span> SearchText<span style="color: #008000;">;</span>
+  HttpWebRequest request <span style="color: #008000;">=</span> <span style="color: #008000;">(</span>HttpWebRequest<span style="color: #008000;">)</span>HttpWebRequest<span style="color: #008000;">.</span><span style="color: #0000FF;">Create</span><span style="color: #008000;">(</span><span style="color: #008000;">new</span> Uri<span style="color: #008000;">(</span>uri<span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  request<span style="color: #008000;">.</span><span style="color: #0000FF;">BeginGetResponse</span><span style="color: #008000;">(</span><span style="color: #008000;">new</span> AsyncCallback<span style="color: #008000;">(</span>ReadCallback<span style="color: #008000;">)</span>, request<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// A callback that receives the search results</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> ReadCallback<span style="color: #008000;">(</span>IAsyncResult asynchronousResult<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  HttpWebRequest request <span style="color: #008000;">=</span> <span style="color: #008000;">(</span>HttpWebRequest<span style="color: #008000;">)</span>asynchronousResult<span style="color: #008000;">.</span><span style="color: #0000FF;">AsyncState</span><span style="color: #008000;">;</span>
+  HttpWebResponse response <span style="color: #008000;">=</span> <span style="color: #008000;">(</span>HttpWebResponse<span style="color: #008000;">)</span>request<span style="color: #008000;">.</span><span style="color: #0000FF;">EndGetResponse</span><span style="color: #008000;">(</span>asynchronousResult<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">using</span> <span style="color: #008000;">(</span>StreamReader streamReader1 <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> StreamReader<span style="color: #008000;">(</span>response<span style="color: #008000;">.</span><span style="color: #0000FF;">GetResponseStream</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #6666cc; font-weight: bold;">string</span> resultString <span style="color: #008000;">=</span> streamReader1<span style="color: #008000;">.</span><span style="color: #0000FF;">ReadToEnd</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// marshall onto the UI thread and parse</span>
+    _marshalInvoke<span style="color: #008000;">.</span><span style="color: #0000FF;">Invoke</span><span style="color: #008000;">(</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span> <span style="color: #008000;">=&gt;</span>
+      <span style="color: #008000;">{</span>
+        Tweets<span style="color: #008000;">.</span><span style="color: #0000FF;">Clear</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+        ParseXMLResponse<span style="color: #008000;">(</span>resultString<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+        IsSearching <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">false</span><span style="color: #008000;">;</span>
+      <span style="color: #008000;">}</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>This makes me happy <img src="http://www.scottlogic.co.uk/blog/colin/wp-includes/images/smilies/icon_smile.gif" alt=":-)" class="wp-smiley" /> </p><p>On a side note, whilst WinRT does not have <code>WebClient</code>, it actually has something much better via classes such as <code>SyndicationFeed </code> which make use of the new C# <code>async </code>and <code>await</code> pattern for dealing with asynchrony. Of course, using these new APIs reduces the amount of code you share with the Silverlight .NET code.</p><p>The <code>DelegateCommand </code>implementation again hits the same problem of the same interface being located in a different namespace, yet despite this, most of the code is shared:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080;">#if WINRT</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">// used for ICommand</span>
+<span style="color: #0600FF; font-weight: bold;">using</span> <span style="color: #008080;">Windows.UI.Xaml.Input</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #008080;">#else</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">using</span> <span style="color: #008080;">System.Windows.Input</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #008080;">#endif</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">namespace</span> SLUGUK<span style="color: #008000;">.</span><span style="color: #0000FF;">ViewModel</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> DelegateCommand <span style="color: #008000;">:</span> ICommand
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">private</span> Action _action<span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">public</span> DelegateCommand<span style="color: #008000;">(</span>Action action<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      _action <span style="color: #008000;">=</span> action<span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">bool</span> CanExecute<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> parameter<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #008080;">#if WINRT</span>
+    <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">event</span> Windows<span style="color: #008000;">.</span><span style="color: #0000FF;">UI</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Xaml</span><span style="color: #008000;">.</span><span style="color: #0000FF;">EventHandler</span> CanExecuteChanged<span style="color: #008000;">;</span>
+<span style="color: #008080;">#else</span>
+    <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">event</span> EventHandler CanExecuteChanged<span style="color: #008000;">;</span>
+<span style="color: #008080;">#endif</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">void</span> Execute<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> parameter<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      _action<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>Despite the various XAML UI controls being in a different C# namespace, they use the same URIs for their XML namespace mappings. This makes it possible to share XAML as well as C# code between your applications.</p><p>However, in much the same way as it makes little sense to share XAML between WP7 and Silverlight due to differences in form-factor and user-experience, I don’t think it makes sense to share XAML between Silverlight and Metro WinRT. The primary focus of the Win8 Metro applications is the touch-first tablet form factor, hence you would expect it to be quite different from a desktop application.</p><p>The following is the XAML for my Metro UI application:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;UserControl</span> <span style="color: #000066;">x:Class</span>=<span style="color: #ff0000;">"WinRTMetroTwitter.View.TwitterSearchView"</span></span>
+<span style="color: #009900;">    <span style="color: #000066;">xmlns</span>=<span style="color: #ff0000;">"http://schemas.microsoft.com/winfx/2006/xaml/presentation"</span></span>
+<span style="color: #009900;">    <span style="color: #000066;">xmlns:x</span>=<span style="color: #ff0000;">"http://schemas.microsoft.com/winfx/2006/xaml"</span></span>
+<span style="color: #009900;">    <span style="color: #000066;">xmlns:d</span>=<span style="color: #ff0000;">"http://schemas.microsoft.com/expression/blend/2008"</span></span>
+<span style="color: #009900;">    <span style="color: #000066;">xmlns:mc</span>=<span style="color: #ff0000;">"http://schemas.openxmlformats.org/markup-compatibility/2006"</span></span>
+<span style="color: #009900;">    <span style="color: #000066;">xmlns:local</span>=<span style="color: #ff0000;">"using:WinRTMetroTwitter.View"</span></span>
+<span style="color: #009900;">    <span style="color: #000066;">mc:Ignorable</span>=<span style="color: #ff0000;">"d"</span></span>
+<span style="color: #009900;">    <span style="color: #000066;">d:DesignHeight</span>=<span style="color: #ff0000;">"300"</span> <span style="color: #000066;">d:DesignWidth</span>=<span style="color: #ff0000;">"400"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+&nbsp;
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;UserControl.Resources<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;local:BoolToVisibilityConverter</span> <span style="color: #000066;">x:Key</span>=<span style="color: #ff0000;">"BoolToVisibilityConverter"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;local:ImageConverter</span> <span style="color: #000066;">x:Key</span>=<span style="color: #ff0000;">"ImageConverter"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>        
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/UserControl.Resources<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+&nbsp;
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Grid</span> <span style="color: #000066;">x:Name</span>=<span style="color: #ff0000;">"LayoutRoot"</span> <span style="color: #000066;">Background</span>=<span style="color: #ff0000;">"#FF0C0C0C"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Grid</span> <span style="color: #000066;">Margin</span>=<span style="color: #ff0000;">"50"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">Width</span>=<span style="color: #ff0000;">"400"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">HorizontalAlignment</span>=<span style="color: #ff0000;">"Left"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+            <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Grid.RowDefinitions<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;RowDefinition</span> <span style="color: #000066;">Height</span>=<span style="color: #ff0000;">"Auto"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+                <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;RowDefinition</span> <span style="color: #000066;">Height</span>=<span style="color: #ff0000;">"*"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+            <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Grid.RowDefinitions<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+            <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;StackPanel</span> <span style="color: #000066;">Orientation</span>=<span style="color: #ff0000;">"Horizontal"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+                <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBox</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"{Binding Path=SearchText, Mode=TwoWay}"</span></span>
+<span style="color: #009900;">                     <span style="color: #000066;">Width</span>=<span style="color: #ff0000;">"200"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+                <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Button</span> <span style="color: #000066;">Command</span>=<span style="color: #ff0000;">"{Binding Path=ExecuteSearchCommand}"</span></span>
+<span style="color: #009900;">                    <span style="color: #000066;">Content</span>=<span style="color: #ff0000;">"Go!"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+                <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">VerticalAlignment</span>=<span style="color: #ff0000;">"Center"</span></span>
+<span style="color: #009900;">                     <span style="color: #000066;">Visibility</span>=<span style="color: #ff0000;">"{Binding Path=IsSearching, Converter={StaticResource BoolToVisibilityConverter}}"</span></span>
+<span style="color: #009900;">                     <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"Searching ..."</span></span>
+<span style="color: #009900;">                     <span style="color: #000066;">Margin</span>=<span style="color: #ff0000;">"20,0,0,0"</span></span>
+<span style="color: #009900;">                     <span style="color: #000066;">FontSize</span>=<span style="color: #ff0000;">"15"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+            <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/StackPanel<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+&nbsp;
+            <span style="color: #808080; font-style: italic;">&lt;!-- renders the search results --&gt;</span>
+            <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ItemsControl</span> <span style="color: #000066;">x:Name</span>=<span style="color: #ff0000;">"itemsControl"</span></span>
+<span style="color: #009900;">                          <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"2"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+                <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ItemsControl.ItemsPanel<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ItemsPanelTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;StackPanel</span> <span style="color: #000066;">Orientation</span>=<span style="color: #ff0000;">"Vertical"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+                    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/ItemsPanelTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/ItemsControl.ItemsPanel<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ItemsControl.ItemTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;DataTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;StackPanel</span> <span style="color: #000066;">Orientation</span>=<span style="color: #ff0000;">"Horizontal"</span></span>
+<span style="color: #009900;">                                    <span style="color: #000066;">Margin</span>=<span style="color: #ff0000;">"5"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+                           <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Image</span> <span style="color: #000066;">Source</span>=<span style="color: #ff0000;">"{Binding ProfileImageUrl, Converter={StaticResource ImageConverter}}"</span></span>
+<span style="color: #009900;">                                  <span style="color: #000066;">Width</span>=<span style="color: #ff0000;">"96"</span> <span style="color: #000066;">Height</span>=<span style="color: #ff0000;">"96"</span></span>
+<span style="color: #009900;">                                  <span style="color: #000066;">Stretch</span>=<span style="color: #ff0000;">"UniformToFill"</span></span>
+<span style="color: #009900;">                                  <span style="color: #000066;">Margin</span>=<span style="color: #ff0000;">"2"</span></span>
+<span style="color: #009900;">                                  <span style="color: #000066;">VerticalAlignment</span>=<span style="color: #ff0000;">"Top"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+&nbsp;
+                            <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;StackPanel</span> <span style="color: #000066;">Orientation</span>=<span style="color: #ff0000;">"Vertical"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+                                <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"{Binding Title}"</span></span>
+<span style="color: #009900;">                                           <span style="color: #000066;">TextWrapping</span>=<span style="color: #ff0000;">"Wrap"</span></span>
+<span style="color: #009900;">                                           <span style="color: #000066;">FontSize</span>=<span style="color: #ff0000;">"15"</span></span>
+<span style="color: #009900;">                                           <span style="color: #000066;">Width</span>=<span style="color: #ff0000;">"300"</span></span>
+<span style="color: #009900;">                                           <span style="color: #000066;">HorizontalAlignment</span>=<span style="color: #ff0000;">"Left"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+                                <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;StackPanel</span> <span style="color: #000066;">Orientation</span>=<span style="color: #ff0000;">"Horizontal"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+&nbsp;
+                                    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">FontWeight</span>=<span style="color: #ff0000;">"Bold"</span></span>
+<span style="color: #009900;">                                               <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"{Binding Path=Author}"</span></span>
+<span style="color: #009900;">                                               <span style="color: #000066;">FontSize</span>=<span style="color: #ff0000;">"15"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+&nbsp;
+                                    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Margin</span>=<span style="color: #ff0000;">"10,0,0,0"</span></span>
+<span style="color: #009900;">                                              <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"{Binding Path=Timestamp}"</span></span>
+<span style="color: #009900;">                                               <span style="color: #000066;">FontSize</span>=<span style="color: #ff0000;">"15"</span></span>
+<span style="color: #009900;">                                              <span style="color: #000066;">Foreground</span>=<span style="color: #ff0000;">"#333"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+                                <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/StackPanel<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                            <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/StackPanel<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/StackPanel<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/DataTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/ItemsControl.ItemTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+            <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/ItemsControl<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+&nbsp;
+            <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Rectangle</span> <span style="color: #000066;">Fill</span>=<span style="color: #ff0000;">"#FF0C0C0C"</span></span>
+<span style="color: #009900;">                   <span style="color: #000066;">Opacity</span>=<span style="color: #ff0000;">"0.5"</span></span>
+<span style="color: #009900;">                   <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"1"</span></span>
+<span style="color: #009900;">                   <span style="color: #000066;">Visibility</span>=<span style="color: #ff0000;">"{Binding Path=IsSearching, Converter={StaticResource BoolToVisibilityConverter}}"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Grid<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Grid<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/UserControl<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><p>If you are a Silverlight developer you will notice that<em> everything here</em> is standard Silverlight, it is just wired-up to different classes via the XAML namespace mappings.</p><p>I did discover that the IValueConverter signature within WinRT is a bit different. Within this application, the value conversion logic is so simple it is hardly worth code-sharing, however, it would be a very simple exercise if you wished to do so.</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">namespace</span> WinRTMetroTwitter<span style="color: #008000;">.</span><span style="color: #0000FF;">View</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> BoolToVisibilityConverter <span style="color: #008000;">:</span> IValueConverter
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">object</span> Convert<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> <span style="color: #0600FF; font-weight: bold;">value</span>, <span style="color: #6666cc; font-weight: bold;">string</span> typeName, <span style="color: #6666cc; font-weight: bold;">object</span> parameter, <span style="color: #6666cc; font-weight: bold;">string</span> language<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">bool</span><span style="color: #008000;">)</span><span style="color: #0600FF; font-weight: bold;">value</span> <span style="color: #008000;">?</span> Visibility<span style="color: #008000;">.</span><span style="color: #0000FF;">Visible</span> <span style="color: #008000;">:</span> Visibility<span style="color: #008000;">.</span><span style="color: #0000FF;">Collapsed</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">object</span> ConvertBack<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> <span style="color: #0600FF; font-weight: bold;">value</span>, <span style="color: #6666cc; font-weight: bold;">string</span> typeName, <span style="color: #6666cc; font-weight: bold;">object</span> parameter, <span style="color: #6666cc; font-weight: bold;">string</span> language<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #0600FF; font-weight: bold;">throw</span> <span style="color: #008000;">new</span> NotImplementedException<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>Finally, I did hit against one further problem. With WinRT it seems that there is a currently a bug which prevents <code>ItemsControl </code>binding to collections via <code>INotifyCollectionChanged </code>from working. This has been raised in the <a href="http://social.msdn.microsoft.com/Forums/en-US/winappswithcsharp/thread/aec84969-0947-4fe8-bcf6-ab533e7ab894">MSDN forums</a> and I am sure it will be fixed. As a simple workaround I added the following code-behind (gasp!):</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">sealed</span> <span style="color: #0600FF; font-weight: bold;">partial</span> <span style="color: #6666cc; font-weight: bold;">class</span> TwitterSearchView <span style="color: #008000;">:</span> UserControl
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> TwitterSearchViewModel feedViewModel<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> TwitterSearchView<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    InitializeComponent<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">this</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Loaded</span> <span style="color: #008000;">+=</span> ResultsView_Loaded<span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> ResultsView_Loaded<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, RoutedEventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span> 
+    feedViewModel <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">this</span><span style="color: #008000;">.</span><span style="color: #0000FF;">DataContext</span> <span style="color: #0600FF; font-weight: bold;">as</span> TwitterSearchViewModel<span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// detect collection changed</span>
+    feedViewModel<span style="color: #008000;">.</span><span style="color: #0000FF;">Tweets</span><span style="color: #008000;">.</span><span style="color: #0000FF;">CollectionChanged</span> <span style="color: #008000;">+=</span> FeedItems_CollectionChanged<span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> FeedItems_CollectionChanged<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, NotifyCollectionChangedEventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #008080; font-style: italic;">// manually 'refresh' the UI</span>
+    itemsControl<span style="color: #008000;">.</span><span style="color: #0000FF;">ItemsSource</span> <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">;</span>
+    itemsControl<span style="color: #008000;">.</span><span style="color: #0000FF;">ItemsSource</span> <span style="color: #008000;">=</span> feedViewModel<span style="color: #008000;">.</span><span style="color: #0000FF;">Tweets</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><h2>Conclusions</h2><p>Creating a cross-platform WinRT / Silverlight application is entirely possible, using the same techniques that we currently employ for cross-platform Silverlight / WPF / WP7 applications. There are further complications relating to classes living in different namespaces and there will of course be other detail-level differences that this simple example does not touch upon. However, I think this presents a feasible and promising route for re-using existing Silverlight/ WPF code, and for developing applications that target the Win8 tablet, WP7 phone and Silverlight (or WPF) desktop with a single code-base.</p><p>You can download the full sourcecode: <a href="{{ site.url }}/blog/colin/wp-content/uploads/2011/09/CrossPlatformTwitter.zip">CrossPlatformTwitter.zip</a></p><p>Regards, Colin E.</p></div>

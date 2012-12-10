@@ -1,0 +1,152 @@
+---
+author: Colin Eberhardt
+tags: bing maps, Windows Phone 7
+permalink: /blog/colin/2011/11/pushpin-clustering-with-the-windows-phone-7-bing-map-control/index.html
+layout: colineberhardt-blog
+---
+<div class="entry"><div class="topsy_widget_data topsy_theme_light-green" style="float: right; margin-left: 0.75em; background: url(data:,%7B%20%22url%22%3A%20%22http%253A%252F%252Fwww.scottlogic.co.uk%252Fblog%252Fcolin%252F2011%252F11%252Fpushpin-clustering-with-the-windows-phone-7-bing-map-control%252F%22%2C%20%22style%22%3A%20%22big%22%2C%20%22title%22%3A%20%22Pushpin%20Clustering%20with%20the%20Windows%20Phone%207%20Bing%20Map%20control%20%23%22%20%7D);"></div><p><em>This blog post provides a simple utility class that will cluster pushpins on a Bing Map control. This utility provides a way to achieve great performance with 1000s of pushpins.</em></p><p>The Bing Map control for Windows Phone 7 is a versatile control, allowing you to provide your users with an interactive map. The control has some very useful features such as <code>Pushpins</code>, which you can anchor to a map coordinate so that they move automatically as the user pans / zooms the map. However, I have found that in practice, if you have more than ~30 pushpins visible on a map, the pan / zoom performance starts to degrade (on a real device). Therefore, in order to provide the best user-experience, it is advisable to only render a handful of pushpins on the map at any one time. </p><p>This blog post describes a simple approach to clustering pushpins, as shown in the video below, which renders the location of ~500 juggling clubs worldwide:</p><p><iframe width="560" height="315" src="http://www.youtube.com/embed/1Cpx1cHFKvo" frameborder="0" allowfullscreen="allowfullscreen"></iframe></p><p>The clustering code is very easy to use; just create a <code>PushpinClusterer </code>instance, pass your <code>Pushpins</code>, the map and the template to use for the clusters marker:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">var</span> clusterer <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> PushpinClusterer<span style="color: #008000;">(</span>map, pins,
+        <span style="color: #0600FF; font-weight: bold;">this</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Resources</span><span style="color: #008000;">[</span><span style="color: #666666;">"ClusterTemplate"</span><span style="color: #008000;">]</span> <span style="color: #0600FF; font-weight: bold;">as</span> DataTemplate<span style="color: #008000;">)</span><span style="color: #008000;">;</span></pre></td></tr></table></div><p>And that’s it!</p><h2>The Implementation</h2><p>Clustering of map markers is a common problem. Searching the internet I found a number of blog posts describing techniques for clustering Google Maps markers, one such blog post described a simple algorithm which <a href="http://www.appelsiini.net/2008/11/introduction-to-marker-clustering-with-google-maps">clusters points that are within a fixed pixel distance from each other</a>. I decided to take this algorithm and apply it to the Silverlight Bing Maps control.</p><p>The clusterer is a pretty simple class, whenever the map view changes (which occurs after pan or zoom), the clusterer iterates over all the pins, any that are closer than 50 pixels to each other, are merged together.</p><p>Once the pins have been clustered, only those which would currently be visible (based on the map viewport) are added to the map:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Clusters the given pins on the supplied map</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> PushpinClusterer<span style="color: #008000;">(</span>Map map, List<span style="color: #008000;">&lt;</span>Pushpin<span style="color: #008000;">&gt;</span> pins, DataTemplate clusterTemplate<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  _map <span style="color: #008000;">=</span> map<span style="color: #008000;">;</span>
+  _pins <span style="color: #008000;">=</span> pins<span style="color: #008000;">;</span>
+  ClusterTemplate <span style="color: #008000;">=</span> clusterTemplate<span style="color: #008000;">;</span>
+&nbsp;
+  _map<span style="color: #008000;">.</span><span style="color: #0000FF;">ViewChangeEnd</span> <span style="color: #008000;">+=</span> <span style="color: #008000;">(</span>s, e<span style="color: #008000;">)</span> <span style="color: #008000;">=&gt;</span> RenderPins<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span>
+&nbsp;
+&nbsp;
+<span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Re-render the pushpins based on the current zoom level</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> RenderPins<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  List<span style="color: #008000;">&lt;</span>PushpinContainer<span style="color: #008000;">&gt;</span> pinsToAdd <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> List<span style="color: #008000;">&lt;</span>PushpinContainer<span style="color: #008000;">&gt;</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// consider each pin in turn</span>
+  <span style="color: #0600FF; font-weight: bold;">foreach</span> <span style="color: #008000;">(</span><span style="color: #0600FF; font-weight: bold;">var</span> pin <span style="color: #0600FF; font-weight: bold;">in</span> _pins<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">var</span> newPinContainer <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> PushpinContainer<span style="color: #008000;">(</span>pin,
+      _map<span style="color: #008000;">.</span><span style="color: #0000FF;">LocationToViewportPoint</span><span style="color: #008000;">(</span>pin<span style="color: #008000;">.</span><span style="color: #0000FF;">Location</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #6666cc; font-weight: bold;">bool</span> addNewPin <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// determine how close they are to existing pins</span>
+    <span style="color: #0600FF; font-weight: bold;">foreach</span><span style="color: #008000;">(</span><span style="color: #0600FF; font-weight: bold;">var</span> pinContainer <span style="color: #0600FF; font-weight: bold;">in</span> pinsToAdd<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #6666cc; font-weight: bold;">double</span> distance <span style="color: #008000;">=</span> ComputeDistance<span style="color: #008000;">(</span>pinContainer<span style="color: #008000;">.</span><span style="color: #0000FF;">ScreenLocation</span>, newPinContainer<span style="color: #008000;">.</span><span style="color: #0000FF;">ScreenLocation</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+      <span style="color: #008080; font-style: italic;">// if the distance threshold is exceeded, do not add this pin, instead</span>
+      <span style="color: #008080; font-style: italic;">// add it to a cluster</span>
+      <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>distance <span style="color: #008000;">&lt;</span> DistanceThreshold<span style="color: #008000;">)</span>
+      <span style="color: #008000;">{</span>
+        pinContainer<span style="color: #008000;">.</span><span style="color: #0000FF;">Merge</span><span style="color: #008000;">(</span>newPinContainer<span style="color: #008000;">)</span><span style="color: #008000;">;</span>            
+        addNewPin <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">false</span><span style="color: #008000;">;</span>
+        <span style="color: #0600FF; font-weight: bold;">break</span><span style="color: #008000;">;</span>
+      <span style="color: #008000;">}</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>addNewPin<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      pinsToAdd<span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span>newPinContainer<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// asynchronously update the map</span>
+  _map<span style="color: #008000;">.</span><span style="color: #0000FF;">Dispatcher</span><span style="color: #008000;">.</span><span style="color: #0000FF;">BeginInvoke</span><span style="color: #008000;">(</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span> <span style="color: #008000;">=&gt;</span>
+    <span style="color: #008000;">{</span>
+      _map<span style="color: #008000;">.</span><span style="color: #0000FF;">Children</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Clear</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      <span style="color: #0600FF; font-weight: bold;">foreach</span> <span style="color: #008000;">(</span><span style="color: #0600FF; font-weight: bold;">var</span> projectedPin <span style="color: #0600FF; font-weight: bold;">in</span> pinsToAdd<span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Where</span><span style="color: #008000;">(</span>pin <span style="color: #008000;">=&gt;</span> PointIsVisibleInMap<span style="color: #008000;">(</span>pin<span style="color: #008000;">.</span><span style="color: #0000FF;">ScreenLocation</span>, _map<span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span>
+      <span style="color: #008000;">{</span>
+        _map<span style="color: #008000;">.</span><span style="color: #0000FF;">Children</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span>projectedPin<span style="color: #008000;">.</span><span style="color: #0000FF;">GetElement</span><span style="color: #008000;">(</span>ClusterTemplate<span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      <span style="color: #008000;">}</span>
+    <span style="color: #008000;">}</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Gets whether the given point is within the map bounds</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">bool</span> PointIsVisibleInMap<span style="color: #008000;">(</span>Point point, Map map<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">return</span> point<span style="color: #008000;">.</span><span style="color: #0000FF;">X</span> <span style="color: #008000;">&gt;</span> <span style="color: #FF0000;">0</span> <span style="color: #008000;">&amp;&amp;</span> point<span style="color: #008000;">.</span><span style="color: #0000FF;">X</span> <span style="color: #008000;">&lt;</span> map<span style="color: #008000;">.</span><span style="color: #0000FF;">ActualWidth</span> <span style="color: #008000;">&amp;&amp;</span>
+          point<span style="color: #008000;">.</span><span style="color: #0000FF;">Y</span> <span style="color: #008000;">&gt;</span> <span style="color: #FF0000;">0</span> <span style="color: #008000;">&amp;&amp;</span> point<span style="color: #008000;">.</span><span style="color: #0000FF;">Y</span> <span style="color: #008000;">&lt;</span> map<span style="color: #008000;">.</span><span style="color: #0000FF;">ActualHeight</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Computes the cartesian distance between points</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">double</span> ComputeDistance<span style="color: #008000;">(</span>Point p1, Point p2<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">return</span> Math<span style="color: #008000;">.</span><span style="color: #0000FF;">Sqrt</span><span style="color: #008000;">(</span><span style="color: #008000;">(</span>p1<span style="color: #008000;">.</span><span style="color: #0000FF;">X</span> <span style="color: #008000;">-</span> p2<span style="color: #008000;">.</span><span style="color: #0000FF;">X</span><span style="color: #008000;">)</span> <span style="color: #008000;">*</span> <span style="color: #008000;">(</span>p1<span style="color: #008000;">.</span><span style="color: #0000FF;">X</span> <span style="color: #008000;">-</span> p2<span style="color: #008000;">.</span><span style="color: #0000FF;">X</span><span style="color: #008000;">)</span> <span style="color: #008000;">+</span> <span style="color: #008000;">(</span>p1<span style="color: #008000;">.</span><span style="color: #0000FF;">Y</span> <span style="color: #008000;">-</span> p2<span style="color: #008000;">.</span><span style="color: #0000FF;">Y</span><span style="color: #008000;">)</span> <span style="color: #008000;">*</span> <span style="color: #008000;">(</span>p1<span style="color: #008000;">.</span><span style="color: #0000FF;">Y</span> <span style="color: #008000;">-</span> p2<span style="color: #008000;">.</span><span style="color: #0000FF;">Y</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>The <code>PushpinContainer</code> is a class that holds a <code>Pushpin</code>, however, if one or more additional <code>Pushpins</code> are added to it, it will become a cluster. The class is given in full below:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// A container for one or more pushpins at a given screen coordinate.</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> PushpinContainer
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> List<span style="color: #008000;">&lt;</span>Pushpin<span style="color: #008000;">&gt;</span> _pushpins <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> List<span style="color: #008000;">&lt;</span>Pushpin<span style="color: #008000;">&gt;</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Creates a container for the given pushpin</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> PushpinContainer<span style="color: #008000;">(</span>Pushpin pushpin, Point location<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    _pushpins<span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span>pushpin<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    ScreenLocation <span style="color: #008000;">=</span> location<span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Adds the pins from the given container</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">void</span> Merge<span style="color: #008000;">(</span>PushpinContainer pinContainer<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">foreach</span> <span style="color: #008000;">(</span><span style="color: #0600FF; font-weight: bold;">var</span> pin <span style="color: #0600FF; font-weight: bold;">in</span> pinContainer<span style="color: #008000;">.</span>_pushpins<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      _pushpins<span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span>pin<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Gets or sets the current screen location of this container</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> Point ScreenLocation <span style="color: #008000;">{</span> <span style="color: #0600FF; font-weight: bold;">get</span><span style="color: #008000;">;</span> <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">set</span><span style="color: #008000;">;</span> <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Gets the visual representation of the contents of this container. If it is </span>
+  <span style="color: #008080; font-style: italic;">/// a single pushpin, the pushpin itself is returned. If multiple pushpins are present</span>
+  <span style="color: #008080; font-style: italic;">/// a pushpin with the given clusterTemplate is returned.</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> FrameworkElement GetElement<span style="color: #008000;">(</span>DataTemplate clusterTemplate<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>_pushpins<span style="color: #008000;">.</span><span style="color: #0000FF;">Count</span> <span style="color: #008000;">==</span> <span style="color: #FF0000;">1</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #0600FF; font-weight: bold;">return</span> _pushpins<span style="color: #008000;">[</span><span style="color: #FF0000;">0</span><span style="color: #008000;">]</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+    <span style="color: #0600FF; font-weight: bold;">else</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #008000;">new</span> Pushpin<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+      <span style="color: #008000;">{</span>
+        Location <span style="color: #008000;">=</span> _pushpins<span style="color: #008000;">.</span><span style="color: #0000FF;">First</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Location</span>,
+        Content <span style="color: #008000;">=</span> _pushpins<span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Select</span><span style="color: #008000;">(</span>pin <span style="color: #008000;">=&gt;</span> pin<span style="color: #008000;">.</span><span style="color: #0000FF;">DataContext</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0000FF;">ToList</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span>,
+        ContentTemplate <span style="color: #008000;">=</span> clusterTemplate,
+        Background <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> SolidColorBrush<span style="color: #008000;">(</span>Colors<span style="color: #008000;">.</span><span style="color: #0000FF;">Red</span><span style="color: #008000;">)</span>
+      <span style="color: #008000;">}</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>    
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>The <code>GetElement</code> method will either return the <code>Pushpin</code>, if it has not been clustered, or a new <code>Pushpin </code>with the <code>ClusterTemplate </code>applied. Note, the <code>Content</code> property of the clustered pin is a list of the <code>DataContext</code> properties of all the pins it ‘contains’.</p><p>The example application, which renders the location of ~500 juggling clubs, uses a very simple cluster template which simply indicates the number of points that have been clustered:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;DataTemplate</span> <span style="color: #000066;">x:Key</span>=<span style="color: #ff0000;">"ClusterTemplate"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"{Binding Count}"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/DataTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><p>However, I am sure that with a bit of creativity, a more interesting template could be created!</p><p>Finally, the example application handles left mouse-clicks on the map, inspecting the <code>DataContext </code>of the clicked element in order to render the juggling club or cluster of juggling clubs which were clicked upon:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> Map_MouseLeftButtonUp<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, MouseButtonEventArgs e<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">var</span> fe <span style="color: #008000;">=</span> e<span style="color: #008000;">.</span><span style="color: #0000FF;">OriginalSource</span> <span style="color: #0600FF; font-weight: bold;">as</span> FrameworkElement<span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>fe<span style="color: #008000;">.</span><span style="color: #0000FF;">DataContext</span> <span style="color: #008000;">is</span> <span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    itemList<span style="color: #008000;">.</span><span style="color: #0000FF;">ItemsSource</span> <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> List<span style="color: #008000;">&lt;</span><span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">&gt;</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span> <span style="color: #008000;">{</span> <span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">)</span>fe<span style="color: #008000;">.</span><span style="color: #0000FF;">DataContext</span> <span style="color: #008000;">}</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>fe<span style="color: #008000;">.</span><span style="color: #0000FF;">DataContext</span> <span style="color: #008000;">is</span> IEnumerable<span style="color: #008000;">&lt;</span><span style="color: #6666cc; font-weight: bold;">object</span><span style="color: #008000;">&gt;</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    itemList<span style="color: #008000;">.</span><span style="color: #0000FF;">ItemsSource</span> <span style="color: #008000;">=</span> <span style="color: #008000;">(</span>fe<span style="color: #008000;">.</span><span style="color: #0000FF;">DataContext</span> <span style="color: #0600FF; font-weight: bold;">as</span> IEnumerable<span style="color: #008000;">&lt;</span><span style="color: #6666cc; font-weight: bold;">object</span><span style="color: #008000;">&gt;</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Cast</span><span style="color: #008000;">&lt;</span><span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">&gt;</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>Let me know if you find this code useful, or you apply it in your application.</p><p>You can download the full sourcecode here: <a href="{{ site.url }}/blog/colin/wp-content/uploads/2011/11/MarkerClustering.zip">MarkerClustering.zip</a></p><p>Regards, Colin E.</p></div>

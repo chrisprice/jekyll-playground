@@ -1,0 +1,222 @@
+---
+author: Colin Eberhardt
+tags: attached behaviour, grid
+permalink: /blog/colin/2010/12/a-simplified-grid-markup-for-silverlight-and-wpf/index.html
+layout: colineberhardt-blog
+---
+<div class="entry"><div class="topsy_widget_data topsy_theme_light-green" style="float: right; margin-left: 0.75em; background: url(data:,%7B%20%22url%22%3A%20%22http%253A%252F%252Fwww.scottlogic.co.uk%252Fblog%252Fcolin%252F2010%252F12%252Fa-simplified-grid-markup-for-silverlight-and-wpf%252F%22%2C%20%22style%22%3A%20%22big%22%2C%20%22title%22%3A%20%22A%20Simplified%20Grid%20Markup%20for%20Silverlight%20and%20WPF%20%23%22%20%7D);"></div><p><em>The WPF / Silverlight syntax is long and cumbersome. This blog post describe a simple attached property that allows you to specify row and column widths / heights as a simple comma separated list, e.g. RowDefinitions=”Auto,,3*,,,,2*”</em></p><p>The Grid is probably one of the most useful and versatile layouts that Silverlight and WPF offers. However, if you hand craft your XAML, as I do, you will probably start to find the Grid markup for defining rows and columns to be verbose and cumbersome. If we look at the following example, which uses a mixture of Auto, Star and Pixel widths / heights:</p><p><img class="aligncenter size-full wp-image-1051" title="gridExample" src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2010/12/gridExample.png" alt="" width="290" height="241" /></p><p>Despite this being a simple example, the required row and column definitions are highly verbose:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Grid<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Grid.RowDefinitions<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;RowDefinition</span> <span style="color: #000066;">Height</span>=<span style="color: #ff0000;">"Auto"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;RowDefinition</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;RowDefinition</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;RowDefinition</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;RowDefinition</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;RowDefinition</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;RowDefinition</span> <span style="color: #000066;">Height</span>=<span style="color: #ff0000;">"2*"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Grid.RowDefinitions<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Grid.ColumnDefinitions<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ColumnDefinition</span> <span style="color: #000066;">Width</span>=<span style="color: #ff0000;">"100"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ColumnDefinition</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Grid.ColumnDefinitions<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"User Details"</span> <span style="color: #000066;">FontSize</span>=<span style="color: #ff0000;">"20"</span></span>
+<span style="color: #009900;">          <span style="color: #000066;">HorizontalAlignment</span>=<span style="color: #ff0000;">"Center"</span></span>
+<span style="color: #009900;">          <span style="color: #000066;">Grid.ColumnSpan</span>=<span style="color: #ff0000;">"2"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"Forename:"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"1"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBox</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"Jeremy"</span></span>
+<span style="color: #009900;">            <span style="color: #000066;">Grid.Column</span>=<span style="color: #ff0000;">"1"</span> <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"1"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"Surname:"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"2"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBox</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"James"</span></span>
+<span style="color: #009900;">            <span style="color: #000066;">Grid.Column</span>=<span style="color: #ff0000;">"1"</span> <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"2"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"Age:"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"3"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBox</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"24"</span></span>
+<span style="color: #009900;">            <span style="color: #000066;">Grid.Column</span>=<span style="color: #ff0000;">"1"</span> <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"3"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"Phone:"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"4"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBox</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"+44 191 555467"</span></span>
+<span style="color: #009900;">            <span style="color: #000066;">Grid.Column</span>=<span style="color: #ff0000;">"1"</span> <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"4"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"Notes:"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"5"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBox</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"A multi-line block of text ..."</span> </span>
+<span style="color: #009900;">            <span style="color: #000066;">TextWrapping</span>=<span style="color: #ff0000;">"Wrap"</span></span>
+<span style="color: #009900;">            <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"6"</span> <span style="color: #000066;">Grid.ColumnSpan</span>=<span style="color: #ff0000;">"2"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Grid<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><p>To provide a simpler alternative, I have created attached properties, one for the column definitions, and the other for the rows. These attached properties allow you to specify the columns / rows as a comma separated list of heights and widths.</p><p>Using this technique, the above example becomes:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Grid</span> <span style="color: #000066;">local:GridUtils.ColumnDefinitions</span>=<span style="color: #ff0000;">"100,"</span></span>
+<span style="color: #009900;">      <span style="color: #000066;">local:GridUtils.RowDefinitions</span>=<span style="color: #ff0000;">"Auto,,,,,,2*"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"User Details"</span> <span style="color: #000066;">FontSize</span>=<span style="color: #ff0000;">"20"</span></span>
+<span style="color: #009900;">          <span style="color: #000066;">HorizontalAlignment</span>=<span style="color: #ff0000;">"Center"</span></span>
+<span style="color: #009900;">          <span style="color: #000066;">Grid.ColumnSpan</span>=<span style="color: #ff0000;">"2"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"Forename:"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"1"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBox</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"Jeremy"</span></span>
+<span style="color: #009900;">            <span style="color: #000066;">Grid.Column</span>=<span style="color: #ff0000;">"1"</span> <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"1"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"Surname:"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"2"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBox</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"James"</span></span>
+<span style="color: #009900;">            <span style="color: #000066;">Grid.Column</span>=<span style="color: #ff0000;">"1"</span> <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"2"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"Age:"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"3"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBox</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"24"</span></span>
+<span style="color: #009900;">            <span style="color: #000066;">Grid.Column</span>=<span style="color: #ff0000;">"1"</span> <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"3"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"Phone:"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"4"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBox</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"+44 191 555467"</span></span>
+<span style="color: #009900;">            <span style="color: #000066;">Grid.Column</span>=<span style="color: #ff0000;">"1"</span> <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"4"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"Notes:"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"5"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBox</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"A multi-line block of text ..."</span> </span>
+<span style="color: #009900;">            <span style="color: #000066;">TextWrapping</span>=<span style="color: #ff0000;">"Wrap"</span></span>
+<span style="color: #009900;">            <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"6"</span> <span style="color: #000066;">Grid.ColumnSpan</span>=<span style="color: #ff0000;">"2"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Grid<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><p>The comma separated list defines the widths / heights of each column / row. The number of items in this list defined the number of rows / column that are generated. This notation supports pixel, star and auto widths / heights. Also, if you want a row or column with the default size, just leave the value blank, i.e. a row definition of “,,,” will create four rows of default height.</p><p>The code to achieve this is pretty simple, involving a couple of attached properties and string parsing in their changed event handlers. The complete code for the GridUtils class is given below, feel free to copy and paste it into your project:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">using</span> <span style="color: #008080;">System.Windows</span><span style="color: #008000;">;</span>
+<span style="color: #0600FF; font-weight: bold;">using</span> <span style="color: #008080;">System.Windows.Controls</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">namespace</span> SimplifiedGrid
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> GridUtils
+  <span style="color: #008000;">{</span>
+    <span style="color: #008080;">#region RowDefinitions attached property</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+    <span style="color: #008080; font-style: italic;">/// Identified the RowDefinitions attached property</span>
+    <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+    <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #0600FF; font-weight: bold;">readonly</span> DependencyProperty RowDefinitionsProperty <span style="color: #008000;">=</span>
+        DependencyProperty<span style="color: #008000;">.</span><span style="color: #0000FF;">RegisterAttached</span><span style="color: #008000;">(</span><span style="color: #666666;">"RowDefinitions"</span>, <span style="color: #008000;">typeof</span><span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">)</span>, <span style="color: #008000;">typeof</span><span style="color: #008000;">(</span>GridUtils<span style="color: #008000;">)</span>,
+            <span style="color: #008000;">new</span> PropertyMetadata<span style="color: #008000;">(</span><span style="color: #666666;">""</span>, <span style="color: #008000;">new</span> PropertyChangedCallback<span style="color: #008000;">(</span>OnRowDefinitionsPropertyChanged<span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+    <span style="color: #008080; font-style: italic;">/// Gets the value of the RowDefinitions property</span>
+    <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+    <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">string</span> GetRowDefinitions<span style="color: #008000;">(</span>DependencyObject d<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">)</span>d<span style="color: #008000;">.</span><span style="color: #0000FF;">GetValue</span><span style="color: #008000;">(</span>RowDefinitionsProperty<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+    <span style="color: #008080; font-style: italic;">/// Sets the value of the RowDefinitions property</span>
+    <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+    <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">void</span> SetRowDefinitions<span style="color: #008000;">(</span>DependencyObject d, <span style="color: #6666cc; font-weight: bold;">string</span> <span style="color: #0600FF; font-weight: bold;">value</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      d<span style="color: #008000;">.</span><span style="color: #0000FF;">SetValue</span><span style="color: #008000;">(</span>RowDefinitionsProperty, <span style="color: #0600FF; font-weight: bold;">value</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+    <span style="color: #008080; font-style: italic;">/// Handles property changed event for the RowDefinitions property, constructing</span>
+    <span style="color: #008080; font-style: italic;">/// the required RowDefinitions elements on the grid which this property is attached to.</span>
+    <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+    <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">void</span> OnRowDefinitionsPropertyChanged<span style="color: #008000;">(</span>DependencyObject d, DependencyPropertyChangedEventArgs e<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      Grid targetGrid <span style="color: #008000;">=</span> d <span style="color: #0600FF; font-weight: bold;">as</span> Grid<span style="color: #008000;">;</span>
+&nbsp;
+      <span style="color: #008080; font-style: italic;">// construct the required row definitions</span>
+      targetGrid<span style="color: #008000;">.</span><span style="color: #0000FF;">RowDefinitions</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Clear</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      <span style="color: #6666cc; font-weight: bold;">string</span> rowDefs <span style="color: #008000;">=</span> e<span style="color: #008000;">.</span><span style="color: #0000FF;">NewValue</span> <span style="color: #0600FF; font-weight: bold;">as</span> <span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">;</span>
+      <span style="color: #0600FF; font-weight: bold;">var</span> rowDefArray <span style="color: #008000;">=</span> rowDefs<span style="color: #008000;">.</span><span style="color: #0000FF;">Split</span><span style="color: #008000;">(</span><span style="color: #666666;">','</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      <span style="color: #0600FF; font-weight: bold;">foreach</span> <span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span> rowDefinition <span style="color: #0600FF; font-weight: bold;">in</span> rowDefArray<span style="color: #008000;">)</span>
+      <span style="color: #008000;">{</span>
+        <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>rowDefinition<span style="color: #008000;">.</span><span style="color: #0000FF;">Trim</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span> <span style="color: #008000;">==</span> <span style="color: #666666;">""</span><span style="color: #008000;">)</span>
+        <span style="color: #008000;">{</span>
+          targetGrid<span style="color: #008000;">.</span><span style="color: #0000FF;">RowDefinitions</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span><span style="color: #008000;">new</span> RowDefinition<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+        <span style="color: #008000;">}</span>
+        <span style="color: #0600FF; font-weight: bold;">else</span>
+        <span style="color: #008000;">{</span>
+          targetGrid<span style="color: #008000;">.</span><span style="color: #0000FF;">RowDefinitions</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span><span style="color: #008000;">new</span> RowDefinition<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+          <span style="color: #008000;">{</span>
+            Height <span style="color: #008000;">=</span> ParseLength<span style="color: #008000;">(</span>rowDefinition<span style="color: #008000;">)</span>
+          <span style="color: #008000;">}</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+        <span style="color: #008000;">}</span>
+      <span style="color: #008000;">}</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    <span style="color: #008080;">#endregion</span>
+&nbsp;
+&nbsp;
+    <span style="color: #008080;">#region ColumnDefinitions attached property</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+    <span style="color: #008080; font-style: italic;">/// Identifies the ColumnDefinitions attached property</span>
+    <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+    <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #0600FF; font-weight: bold;">readonly</span> DependencyProperty ColumnDefinitionsProperty <span style="color: #008000;">=</span>
+        DependencyProperty<span style="color: #008000;">.</span><span style="color: #0000FF;">RegisterAttached</span><span style="color: #008000;">(</span><span style="color: #666666;">"ColumnDefinitions"</span>, <span style="color: #008000;">typeof</span><span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">)</span>, <span style="color: #008000;">typeof</span><span style="color: #008000;">(</span>GridUtils<span style="color: #008000;">)</span>,
+            <span style="color: #008000;">new</span> PropertyMetadata<span style="color: #008000;">(</span><span style="color: #666666;">""</span>, <span style="color: #008000;">new</span> PropertyChangedCallback<span style="color: #008000;">(</span>OnColumnDefinitionsPropertyChanged<span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+    <span style="color: #008080; font-style: italic;">/// Gets the value of the ColumnDefinitions property</span>
+    <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+    <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">string</span> GetColumnDefinitions<span style="color: #008000;">(</span>DependencyObject d<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">)</span>d<span style="color: #008000;">.</span><span style="color: #0000FF;">GetValue</span><span style="color: #008000;">(</span>ColumnDefinitionsProperty<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+    <span style="color: #008080; font-style: italic;">/// Sets the value of the ColumnDefinitions property</span>
+    <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+    <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">void</span> SetColumnDefinitions<span style="color: #008000;">(</span>DependencyObject d, <span style="color: #6666cc; font-weight: bold;">string</span> <span style="color: #0600FF; font-weight: bold;">value</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      d<span style="color: #008000;">.</span><span style="color: #0000FF;">SetValue</span><span style="color: #008000;">(</span>ColumnDefinitionsProperty, <span style="color: #0600FF; font-weight: bold;">value</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+    <span style="color: #008080; font-style: italic;">/// Handles property changed event for the ColumnDefinitions property, constructing</span>
+    <span style="color: #008080; font-style: italic;">/// the required ColumnDefinitions elements on the grid which this property is attached to.</span>
+    <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+    <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">void</span> OnColumnDefinitionsPropertyChanged<span style="color: #008000;">(</span>DependencyObject d, DependencyPropertyChangedEventArgs e<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      Grid targetGrid <span style="color: #008000;">=</span> d <span style="color: #0600FF; font-weight: bold;">as</span> Grid<span style="color: #008000;">;</span>
+&nbsp;
+      <span style="color: #008080; font-style: italic;">// construct the required column definitions</span>
+      targetGrid<span style="color: #008000;">.</span><span style="color: #0000FF;">ColumnDefinitions</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Clear</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      <span style="color: #6666cc; font-weight: bold;">string</span> columnDefs <span style="color: #008000;">=</span> e<span style="color: #008000;">.</span><span style="color: #0000FF;">NewValue</span> <span style="color: #0600FF; font-weight: bold;">as</span> <span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">;</span>
+      <span style="color: #0600FF; font-weight: bold;">var</span> columnDefArray <span style="color: #008000;">=</span> columnDefs<span style="color: #008000;">.</span><span style="color: #0000FF;">Split</span><span style="color: #008000;">(</span><span style="color: #666666;">','</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      <span style="color: #0600FF; font-weight: bold;">foreach</span> <span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span> columnDefinition <span style="color: #0600FF; font-weight: bold;">in</span> columnDefArray<span style="color: #008000;">)</span>
+      <span style="color: #008000;">{</span>
+        <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>columnDefinition<span style="color: #008000;">.</span><span style="color: #0000FF;">Trim</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span> <span style="color: #008000;">==</span> <span style="color: #666666;">""</span><span style="color: #008000;">)</span>
+        <span style="color: #008000;">{</span>
+          targetGrid<span style="color: #008000;">.</span><span style="color: #0000FF;">ColumnDefinitions</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span><span style="color: #008000;">new</span> ColumnDefinition<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+        <span style="color: #008000;">}</span>
+        <span style="color: #0600FF; font-weight: bold;">else</span>
+        <span style="color: #008000;">{</span>
+          targetGrid<span style="color: #008000;">.</span><span style="color: #0000FF;">ColumnDefinitions</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span><span style="color: #008000;">new</span> ColumnDefinition<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+          <span style="color: #008000;">{</span>
+            Width <span style="color: #008000;">=</span> ParseLength<span style="color: #008000;">(</span>columnDefinition<span style="color: #008000;">)</span>
+          <span style="color: #008000;">}</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+        <span style="color: #008000;">}</span>
+      <span style="color: #008000;">}</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    <span style="color: #008080;">#endregion</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+    <span style="color: #008080; font-style: italic;">/// Parses a string to create a GridLength</span>
+    <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+    <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">static</span> GridLength ParseLength<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span> length<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      length <span style="color: #008000;">=</span> length<span style="color: #008000;">.</span><span style="color: #0000FF;">Trim</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+      <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>length<span style="color: #008000;">.</span><span style="color: #0000FF;">ToLowerInvariant</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Equals</span><span style="color: #008000;">(</span><span style="color: #666666;">"auto"</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span>
+      <span style="color: #008000;">{</span>
+        <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #008000;">new</span> GridLength<span style="color: #008000;">(</span><span style="color: #FF0000;">0</span>, GridUnitType<span style="color: #008000;">.</span><span style="color: #0000FF;">Auto</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      <span style="color: #008000;">}</span>
+      <span style="color: #0600FF; font-weight: bold;">else</span> <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>length<span style="color: #008000;">.</span><span style="color: #0000FF;">Contains</span><span style="color: #008000;">(</span><span style="color: #666666;">"*"</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span>
+      <span style="color: #008000;">{</span>
+        length <span style="color: #008000;">=</span> length<span style="color: #008000;">.</span><span style="color: #0000FF;">Replace</span><span style="color: #008000;">(</span><span style="color: #666666;">"*"</span>,<span style="color: #666666;">""</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+        <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">.</span><span style="color: #0000FF;">IsNullOrEmpty</span><span style="color: #008000;">(</span>length<span style="color: #008000;">)</span><span style="color: #008000;">)</span> length <span style="color: #008000;">=</span> <span style="color: #666666;">"1"</span><span style="color: #008000;">;</span>
+        <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #008000;">new</span> GridLength<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">double</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Parse</span><span style="color: #008000;">(</span>length<span style="color: #008000;">)</span>, GridUnitType<span style="color: #008000;">.</span><span style="color: #0000FF;">Star</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      <span style="color: #008000;">}</span>
+&nbsp;
+      <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #008000;">new</span> GridLength<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">double</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Parse</span><span style="color: #008000;">(</span>length<span style="color: #008000;">)</span>, GridUnitType<span style="color: #008000;">.</span><span style="color: #0000FF;">Pixel</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>The code which parses the row and column strings is also executed by the Visual Studio designer, so you can see your new rows / columns immediately. It also works just fine in WPF and Silverlight.</p><p>You can download example projects in both technologies: <a href="{{ site.url }}/blog/colin/wp-content/uploads/2010/12/SimplifiedGrid.zip">SimplfiedGrid.zip</a></p><p>readers might also be interested in <a href="http://whydoidoit.com/2010/10/06/automatic-grid-layout-for-silverlight/">Mike Talbot’s AutoGrid</a> which dynamically adds rows / columns based as children are added to the grid. A very neat idea!</p><p>(Thanks to Rob Newsome for coming up with this idea in the first place!)</p><p>Regards, Colin E.</p></div>

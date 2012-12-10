@@ -1,0 +1,103 @@
+---
+author: Jonathan Cardy
+tags: 
+permalink: /2011/02/web-workers-part-2-using-jquery-deferred/index.html
+layout: blog
+---
+<div class="entry"><p>The .NET Task Parallel Library is a great advance in parallel programming for the .NET framework.  It lets us easily run an anonymous method in another thread without any worries about the actual thread creation. A Task object wraps up a piece of parallel code, and provides a notification of when it’s complete.  We can use the Task.WaitAll or TaskFactory.ContinueWhenAll functions to do something after a collection of Tasks are all complete, or use the Task.WaitAny or TaskFactory.ContinueWhenAny to wait until one is complete.  The ContinueWith method schedules code to be run after a single task is complete. </p><p>Hold on…isn’t this blog post supposed to be about JavaScript…? Read on…</p><p>A few weeks ago I had the urge to implement the Task Parallel Library in JavaScript, so I got to work writing a generic Web Worker, created a Task class to wrap it, and implemented the TPL’s ContinueWhenAny, ContinueWhenAll and ContinueWith functions, which was fun, but as my code was nearing completion, jQuery 1.5 came out with the Deferred framework included, implementing what I had done…but better!</p><p>In the remainder of this post I’m going to show you how to combine jQuery Deferred with Web Workers to create a TPL-like parallel programming environment. </p><p>Firstly a quick intro to jQuery Deferred.  A Deferred object represents an asynchronous activity, and relays the success or failure of it, along with results, to any registered callbacks.  It used to be the case that if you were performing an asynchronous action and wanted to make a callback at the end, you would allow the consumer to pass in a callback function.  Now, you just return a Deferred object to the consumer, and call its resolve function when you want any listeners to be notified.  Take this example of the jQuery 1.4 ajax function, before it used Deferred:</p><div class="wp_syntax"><div class="code"><pre class="javascript" style="font-family: monospace;">$.<span style="color: #660066;">ajax</span><span style="color: #009900;">(</span><span style="color: #009900;">{</span>
+  url<span style="color: #339933;">:</span> <span style="color: #3366CC;">"w.php"</span><span style="color: #339933;">,</span>
+  success<span style="color: #339933;">:</span> <span style="color: #003366; font-weight: bold;">function</span><span style="color: #009900;">(</span>result<span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+    <span style="color: #006600; font-style: italic;">//Do something with the result</span>
+  <span style="color: #009900;">}</span>
+<span style="color: #009900;">}</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span></pre></div></div><p>And in jQuery 1.5, that changes to the following, where “success” is no longer a simple callback – but a function on the Deferred object created by the $.ajax request:</p><div class="wp_syntax"><div class="code"><pre class="javascript" style="font-family: monospace;">$.<span style="color: #660066;">ajax</span><span style="color: #009900;">(</span><span style="color: #3366CC;">"w.php"</span><span style="color: #009900;">)</span>.<span style="color: #660066;">success</span><span style="color: #009900;">(</span><span style="color: #003366; font-weight: bold;">function</span><span style="color: #009900;">(</span>result<span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+	<span style="color: #006600; font-style: italic;">//Do something with the result</span>
+<span style="color: #009900;">}</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span></pre></div></div><p>Note that, just to confuse matters, the $.ajax request returns a specialised Deferred object which gives us the success, error and complete callback hooks for ease of use – the standard Deferred methods are implemented internally.  So it’s probably not the best example. Here’s a lovely example where a Deferred object is created to represent the completion of an animation:</p><div class="wp_syntax"><div class="code"><pre class="javascript" style="font-family: monospace;"><span style="color: #003366; font-weight: bold;">function</span> fadeIn<span style="color: #009900;">(</span>selector<span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+	<span style="color: #006600; font-style: italic;">//Create a deferred object</span>
+	<span style="color: #000066; font-weight: bold;">return</span> $.<span style="color: #660066;">Deferred</span><span style="color: #009900;">(</span><span style="color: #003366; font-weight: bold;">function</span><span style="color: #009900;">(</span>dfd<span style="color: #009900;">)</span> <span style="color: #009900;">{</span>
+		<span style="color: #006600; font-style: italic;">//Fade in the element, on completion resolve the deferred.</span>
+		$<span style="color: #009900;">(</span>selector<span style="color: #009900;">)</span>.<span style="color: #660066;">fadeIn</span><span style="color: #009900;">(</span> <span style="color: #CC0000;">1000</span><span style="color: #339933;">,</span> dfd.<span style="color: #660066;">resolve</span> <span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+	<span style="color: #009900;">}</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+<span style="color: #009900;">}</span></pre></div></div><p>In fact any action can be represented as a deferred object, which would be really useful because we could then chain any time-consuming actions together in a simple way. </p><p>As I mentioned at the start, I found that Deferred implemented a lot of the functionality in my JavaScript TPL implementation.  Here is a comparison between TPL functions and Deferred:</p><table>
+<thead>
+<tr>
+<th>TPL</th>
+<th>Deferred</th>
+<th>Description</th>
+</tr>
+</thead>
+<thead>
+<tr>
+<td style="padding: 5px;">new Task(action)</td>
+<td style="padding: 5px;">$.Deferred(function)</td>
+<td style="padding: 5px;">Creates a new Task or Deferred from a function.</td>
+</tr>
+<tr>
+<td style="padding: 5px;">ContinueWith(action)</td>
+<td style="padding: 5px;">then(function), done(function)</td>
+<td style="padding: 5px;">Creates a new Task or Deferred from a function, to be run when the current Task or Deferred is complete.</td>
+</tr>
+<tr>
+<td style="padding: 5px;">WaitAll</td>
+<td style="padding: 5px;">…</td>
+<td style="padding: 5px;">Blocks the current thread until all tasks are complete. Bad idea in javascript since you’d be blocking the UI thread!</td>
+</tr>
+<tr>
+<td style="padding: 5px;">WaitAny</td>
+<td style="padding: 5px;">…</td>
+<td style="padding: 5px;">Blocks the current thread until any task is complete.</td>
+</tr>
+<tr>
+<td style="padding: 5px;">TaskFactory.ContinueWhenAll</td>
+<td style="padding: 5px;">$.when(function)</td>
+<td style="padding: 5px;">Creates a new Task or Deferred which is run when the supplied collection of Task/Deferred objects is complete.</td>
+</tr>
+<tr>
+<td style="padding: 5px;">TaskFactory.ContinueWhenAny</td>
+<td style="padding: 5px;">…</td>
+<td style="padding: 5px;">Creates a new Task which is run when any of the supplied collection of Task objects is complete.</td>
+</tr>
+</thead>
+</table><h2>Combining a Web Worker with Deferred</h2><p>Let’s firstly define a simple Web Worker object, and put it in the file worker.js:</p><div class="wp_syntax"><div class="code"><pre class="javascript" style="font-family: monospace;">self.<span style="color: #660066;">onmessage</span> <span style="color: #339933;">=</span> <span style="color: #003366; font-weight: bold;">function</span> <span style="color: #009900;">(</span>event<span style="color: #009900;">)</span> <span style="color: #009900;">{</span>
+	<span style="color: #003366; font-weight: bold;">var</span> received <span style="color: #339933;">=</span> <span style="color: #003366; font-weight: bold;">new</span> Date<span style="color: #009900;">(</span><span style="color: #009900;">)</span>.<span style="color: #660066;">getTime</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+&nbsp;
+	<span style="color: #006600; font-style: italic;">//Post the result message</span>
+	postMessage<span style="color: #009900;">(</span><span style="color: #009900;">{</span>
+		received<span style="color: #339933;">:</span> received<span style="color: #339933;">,</span>
+		message<span style="color: #339933;">:</span> event.<span style="color: #660066;">data</span>.<span style="color: #660066;">message</span>
+	<span style="color: #009900;">}</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+<span style="color: #009900;">}</span><span style="color: #339933;">;</span></pre></div></div><p>And to consume a worker using Deferred, we have the following helper function:</p><div class="wp_syntax"><div class="code"><pre class="javascript" style="font-family: monospace;"><span style="color: #006600; font-style: italic;">//Add a work helper function to the jQuery object</span>
+$.<span style="color: #660066;">work</span> <span style="color: #339933;">=</span> <span style="color: #003366; font-weight: bold;">function</span><span style="color: #009900;">(</span>args<span style="color: #009900;">)</span> <span style="color: #009900;">{</span> 
+	<span style="color: #003366; font-weight: bold;">var</span> def <span style="color: #339933;">=</span> $.<span style="color: #660066;">Deferred</span><span style="color: #009900;">(</span><span style="color: #003366; font-weight: bold;">function</span><span style="color: #009900;">(</span>dfd<span style="color: #009900;">)</span> <span style="color: #009900;">{</span>
+		<span style="color: #003366; font-weight: bold;">var</span> worker<span style="color: #339933;">;</span>
+		<span style="color: #000066; font-weight: bold;">if</span> <span style="color: #009900;">(</span>window.<span style="color: #660066;">Worker</span><span style="color: #009900;">)</span> <span style="color: #009900;">{</span>
+			<span style="color: #006600; font-style: italic;">//Construct the Web Worker</span>
+			<span style="color: #003366; font-weight: bold;">var</span> worker <span style="color: #339933;">=</span> <span style="color: #003366; font-weight: bold;">new</span> Worker<span style="color: #009900;">(</span>args.<span style="color: #660066;">file</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span> 
+			worker.<span style="color: #660066;">onmessage</span> <span style="color: #339933;">=</span> <span style="color: #003366; font-weight: bold;">function</span><span style="color: #009900;">(</span>event<span style="color: #009900;">)</span> <span style="color: #009900;">{</span>
+				<span style="color: #006600; font-style: italic;">//If the Worker reports success, resolve the Deferred</span>
+				dfd.<span style="color: #660066;">resolve</span><span style="color: #009900;">(</span>event.<span style="color: #660066;">data</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span> 
+			<span style="color: #009900;">}</span><span style="color: #339933;">;</span>
+			worker.<span style="color: #000066;">onerror</span> <span style="color: #339933;">=</span> <span style="color: #003366; font-weight: bold;">function</span><span style="color: #009900;">(</span>event<span style="color: #009900;">)</span> <span style="color: #009900;">{</span>
+				<span style="color: #006600; font-style: italic;">//If the Worker reports an error, reject the Deferred</span>
+				dfd.<span style="color: #660066;">reject</span><span style="color: #009900;">(</span>event<span style="color: #009900;">)</span><span style="color: #339933;">;</span> 
+			<span style="color: #009900;">}</span><span style="color: #339933;">;</span>
+			worker.<span style="color: #660066;">postMessage</span><span style="color: #009900;">(</span>args.<span style="color: #660066;">args</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span> <span style="color: #006600; font-style: italic;">//Start the worker with supplied args</span>
+		<span style="color: #009900;">}</span> <span style="color: #000066; font-weight: bold;">else</span> <span style="color: #009900;">{</span>
+			<span style="color: #006600; font-style: italic;">//Need to do something when the browser doesn't have Web Workers</span>
+		<span style="color: #009900;">}</span>
+	<span style="color: #009900;">}</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+&nbsp;
+	<span style="color: #006600; font-style: italic;">//Return the promise object (an "immutable" Deferred object for consumers to use)</span>
+	<span style="color: #000066; font-weight: bold;">return</span> def.<span style="color: #660066;">promise</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span> 
+<span style="color: #009900;">}</span><span style="color: #339933;">;</span></pre></div></div><p>Finally, all that remains is to make a call into the $.work function to start the worker!</p><div class="wp_syntax"><div class="code"><pre class="javascript" style="font-family: monospace;"><span style="color: #006600; font-style: italic;">//Call the helper work function with the name of the Worker file and arguments.</span>
+$.<span style="color: #660066;">work</span><span style="color: #009900;">(</span><span style="color: #009900;">{</span>file<span style="color: #339933;">:</span> <span style="color: #3366CC;">'perf_worker.js'</span><span style="color: #339933;">,</span> args<span style="color: #339933;">:</span> <span style="color: #009900;">{</span> message<span style="color: #339933;">:</span> <span style="color: #3366CC;">"ping!"</span> <span style="color: #009900;">}</span><span style="color: #009900;">}</span><span style="color: #009900;">)</span>.<span style="color: #660066;">then</span><span style="color: #009900;">(</span><span style="color: #003366; font-weight: bold;">function</span><span style="color: #009900;">(</span>data<span style="color: #009900;">)</span> <span style="color: #009900;">{</span>
+	<span style="color: #006600; font-style: italic;">//Worker completed successfully</span>
+	console.<span style="color: #660066;">log</span><span style="color: #009900;">(</span>data<span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+<span style="color: #009900;">}</span><span style="color: #009900;">)</span>.<span style="color: #660066;">fail</span><span style="color: #009900;">(</span><span style="color: #003366; font-weight: bold;">function</span><span style="color: #009900;">(</span>data<span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+	<span style="color: #006600; font-style: italic;">//Worker threw an error</span>
+	console.<span style="color: #660066;">log</span><span style="color: #009900;">(</span>data<span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+<span style="color: #009900;">}</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span></pre></div></div><p>Beautiful! Now let’s see an example of how Deferred makes life a lot easier now.  Let’s assume we’ve already completed the trivial task of writing a worker “primes.js” that calculates the prime numbers between a pair of values.  Our task is to consume that worker and calculate the primes between 1 and 1 million.  We can split that into two workers as follows:</p><div class="wp_syntax"><div class="code"><pre class="javascript" style="font-family: monospace;"><span style="color: #003366; font-weight: bold;">var</span> worker1 <span style="color: #339933;">=</span> $.<span style="color: #660066;">work</span><span style="color: #009900;">(</span><span style="color: #009900;">{</span>file<span style="color: #339933;">:</span> <span style="color: #3366CC;">'primes.js'</span><span style="color: #339933;">,</span> args<span style="color: #339933;">:</span> <span style="color: #009900;">{</span> from<span style="color: #339933;">:</span> <span style="color: #CC0000;">1</span><span style="color: #339933;">,</span> to<span style="color: #339933;">:</span> <span style="color: #CC0000;">500000</span> <span style="color: #009900;">}</span><span style="color: #009900;">}</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+<span style="color: #003366; font-weight: bold;">var</span> worker2 <span style="color: #339933;">=</span> $.<span style="color: #660066;">work</span><span style="color: #009900;">(</span><span style="color: #009900;">{</span>file<span style="color: #339933;">:</span> <span style="color: #3366CC;">'primes.js'</span><span style="color: #339933;">,</span> args<span style="color: #339933;">:</span> <span style="color: #009900;">{</span> from<span style="color: #339933;">:</span> <span style="color: #CC0000;">500001</span><span style="color: #339933;">,</span> to<span style="color: #339933;">:</span><span style="color: #CC0000;">1000000</span> <span style="color: #009900;">}</span><span style="color: #009900;">}</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+&nbsp;
+$.<span style="color: #660066;">when</span><span style="color: #009900;">(</span>worker1<span style="color: #339933;">,</span> worker2<span style="color: #009900;">)</span>.<span style="color: #660066;">done</span><span style="color: #009900;">(</span><span style="color: #003366; font-weight: bold;">function</span><span style="color: #009900;">(</span>result1<span style="color: #339933;">,</span> result2<span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+	<span style="color: #006600; font-style: italic;">//All finished! Combine the results from both workers.</span>
+<span style="color: #009900;">}</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span></pre></div></div><h2>Limitations</h2><p>In the code above we don’t have any clear way to make it work in browsers that don’t have Web Workers, and that’s bad.  Hopefully in the next post we can resolve that.</p><p>Also, we’re running the same worker numerous times, and each time re-downloading the worker file!  That’s not nice. We will also look at that in the next post.  But that’s all for now.</p></div>

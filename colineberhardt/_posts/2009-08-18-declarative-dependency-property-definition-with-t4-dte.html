@@ -1,0 +1,173 @@
+---
+author: Colin Eberhardt
+tags: dependency properties, t4
+permalink: /blog/colin/2009/08/declarative-dependency-property-definition-with-t4-dte/index.html
+layout: colineberhardt-blog
+---
+<div class="entry"><div class="topsy_widget_data topsy_theme_light-green" style="float: right; margin-left: 0.75em; background: url(data:,%7B%20%22url%22%3A%20%22http%253A%252F%252Fwww.scottlogic.co.uk%252Fblog%252Fcolin%252F2009%252F08%252Fdeclarative-dependency-property-definition-with-t4-dte%252F%22%2C%20%22style%22%3A%20%22big%22%2C%20%22title%22%3A%20%22Declarative%20Dependency%20Property%20Definition%20with%20T4%20%2B%20DTE%20%23%22%20%7D);"></div><p><b>UPDATE</b> I have published a <a href="http://www.codeproject.com/Articles/184031/Declarative-Codesnippet-Automation-with-T4-Templat">more up-to-date version of this code on codeproject</a>, which allows you to automate the generation of much more than just dependency properties.</p><p>This blog post describes a technique for specifying WPF / Silverlight Dependency Properties declaritively via attributes as illustrated by the following example:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008000;">[</span>DependencyPropertyDecl<span style="color: #008000;">(</span><span style="color: #666666;">"Maximum"</span>, <span style="color: #008000;">typeof</span><span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">double</span><span style="color: #008000;">)</span>, <span style="color: #FF0000;">0.0</span><span style="color: #008000;">)</span><span style="color: #008000;">]</span>
+<span style="color: #008000;">[</span>DependencyPropertyDecl<span style="color: #008000;">(</span><span style="color: #666666;">"Minimum"</span>, <span style="color: #008000;">typeof</span><span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">double</span><span style="color: #008000;">)</span>, <span style="color: #FF0000;">0.0</span><span style="color: #008000;">)</span><span style="color: #008000;">]</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">partial</span> <span style="color: #6666cc; font-weight: bold;">class</span> RangeControl <span style="color: #008000;">:</span> UserControl
+<span style="color: #008000;">{</span>
+    <span style="color: #008000;">...</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>At design-time the declarations are read via a T4 template and the required code is generated. For more information, read on …</p><p>A few months ago I wrote an article on codeproject about a technique for <a href="http://www.codeproject.com/KB/WPF/DependencyPropertyCodeGen.aspx">generating dependency properties via T4 templates</a>. In brief; with this technique, you provide an XML description of your classes and their dependency properties, run the T4 template, and partial classes are generated which contain these properties – no more writing DP boiler plate code! For those of you who are unfamiliar with T4, it is a code generation engine which is built into Visual Studio, for a primer, I refer you to my <a href="http://www.codeproject.com/KB/WPF/DependencyPropertyCodeGen.aspx">codeproject article</a>.</p><p>A few days back Daniel Vaughan published a blog post about using T4 templates to <a href="http://danielvaughan.orpius.com/post/MetaGen-A-project-metadata-generator-for-Visual-Studio-using-T4.aspx#comment">generate project meta-data</a>. He demonstrated how this could be used to solve the age-old problem of hard-coded property name strings when implementing INotifyPropertyChanged. His solution uses both T4 and DTE – an automation library which allows you to programmatically access the items within your projects and solutions. Daniel’s blog post inspired me to revisit my DP code generation solution in order to simplify it and remove the need for the XML file. </p><p>My first step was to define a custom attribute which can be used to indicate that a class requires the template to generate a DP:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008000;">[</span>AttributeUsage<span style="color: #008000;">(</span>AttributeTargets<span style="color: #008000;">.</span><span style="color: #6666cc; font-weight: bold;">Class</span> , AllowMultiple <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">)</span><span style="color: #008000;">]</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> DependencyPropertyDecl <span style="color: #008000;">:</span> Attribute
+<span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">public</span> DependencyPropertyDecl<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span> name, Type type, <span style="color: #6666cc; font-weight: bold;">object</span> defaultValue<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+        <span style="color: #0600FF; font-weight: bold;">this</span><span style="color: #008000;">.</span><span style="color: #0000FF;">name</span> <span style="color: #008000;">=</span> name<span style="color: #008000;">;</span>
+        <span style="color: #0600FF; font-weight: bold;">this</span><span style="color: #008000;">.</span><span style="color: #0000FF;">type</span> <span style="color: #008000;">=</span> type<span style="color: #008000;">;</span>
+        <span style="color: #0600FF; font-weight: bold;">this</span><span style="color: #008000;">.</span><span style="color: #0000FF;">defaultValue</span> <span style="color: #008000;">=</span> defaultValue<span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">string</span> name<span style="color: #008000;">;</span>
+    <span style="color: #0600FF; font-weight: bold;">public</span> Type type<span style="color: #008000;">;</span>
+    <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">object</span> defaultValue<span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>With DTE it should be possible to inspect all the classes in the project, identifying those for which this attribute exists  and generate the required DPs. However, looking at the DTE APIs this is not such an easy task, whilst the API defines a ‘base’ interface CodeElement from which CodeClass, CodeNamespace etc… derive, there is no unified concept of ‘Children’, also the Project and Solution are not CodeElements. In other words, in order to find all the classes in a solution you must recurse over a heterogeneous collection of classes and properties.</p><p>In order to ease the task of locating the classes within the project that have the DependencyPropertyDecl attribute associated, I created a simple Linq-to-DTE implementation:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">public</span> IEnumerable<span style="color: #008000;">&lt;</span>CodeElement<span style="color: #008000;">&gt;</span> CodeElementsInProjectItems<span style="color: #008000;">(</span>ProjectItems projectItems<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">foreach</span> <span style="color: #008000;">(</span>ProjectItem projectItem <span style="color: #0600FF; font-weight: bold;">in</span> projectItems<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+        <span style="color: #0600FF; font-weight: bold;">foreach</span><span style="color: #008000;">(</span>CodeElement el <span style="color: #0600FF; font-weight: bold;">in</span> CodeElementsInProjectItem<span style="color: #008000;">(</span>projectItem<span style="color: #008000;">)</span><span style="color: #008000;">)</span>
+        <span style="color: #008000;">{</span>
+            <span style="color: #0600FF; font-weight: bold;">yield</span> <span style="color: #0600FF; font-weight: bold;">return</span> el<span style="color: #008000;">;</span>
+        <span style="color: #008000;">}</span>
+    <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">public</span> IEnumerable<span style="color: #008000;">&lt;</span>CodeElement<span style="color: #008000;">&gt;</span> CodeElementsInProjectItem<span style="color: #008000;">(</span>ProjectItem projectItem<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+    FileCodeModel fileCodeModel <span style="color: #008000;">=</span> projectItem<span style="color: #008000;">.</span><span style="color: #0000FF;">FileCodeModel</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>fileCodeModel <span style="color: #008000;">!=</span> <span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+        <span style="color: #0600FF; font-weight: bold;">foreach</span> <span style="color: #008000;">(</span>CodeElement codeElement <span style="color: #0600FF; font-weight: bold;">in</span> fileCodeModel<span style="color: #008000;">.</span><span style="color: #0000FF;">CodeElements</span><span style="color: #008000;">)</span>
+        <span style="color: #008000;">{</span>
+            <span style="color: #008080; font-style: italic;">//WalkElements(codeElement, null);</span>
+            <span style="color: #0600FF; font-weight: bold;">foreach</span><span style="color: #008000;">(</span>CodeElement el <span style="color: #0600FF; font-weight: bold;">in</span> CodeElementDescendantsAndSelf<span style="color: #008000;">(</span>codeElement<span style="color: #008000;">)</span><span style="color: #008000;">)</span>
+            <span style="color: #008000;">{</span>
+                <span style="color: #0600FF; font-weight: bold;">yield</span> <span style="color: #0600FF; font-weight: bold;">return</span> el<span style="color: #008000;">;</span>
+            <span style="color: #008000;">}</span>
+        <span style="color: #008000;">}</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>projectItem<span style="color: #008000;">.</span><span style="color: #0000FF;">ProjectItems</span> <span style="color: #008000;">!=</span> <span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+        <span style="color: #0600FF; font-weight: bold;">foreach</span> <span style="color: #008000;">(</span>ProjectItem childItem <span style="color: #0600FF; font-weight: bold;">in</span> projectItem<span style="color: #008000;">.</span><span style="color: #0000FF;">ProjectItems</span><span style="color: #008000;">)</span>
+        <span style="color: #008000;">{</span>
+            <span style="color: #0600FF; font-weight: bold;">foreach</span> <span style="color: #008000;">(</span>CodeElement el <span style="color: #0600FF; font-weight: bold;">in</span> CodeElementsInProjectItem<span style="color: #008000;">(</span>childItem<span style="color: #008000;">)</span><span style="color: #008000;">)</span>
+            <span style="color: #008000;">{</span>
+                <span style="color: #0600FF; font-weight: bold;">yield</span> <span style="color: #0600FF; font-weight: bold;">return</span> el<span style="color: #008000;">;</span>
+            <span style="color: #008000;">}</span>
+        <span style="color: #008000;">}</span>
+    <span style="color: #008000;">}</span>        
+<span style="color: #008000;">}</span>
+&nbsp;
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">public</span> IEnumerable<span style="color: #008000;">&lt;</span>CodeElement<span style="color: #008000;">&gt;</span> CodeElementsDescendants<span style="color: #008000;">(</span>CodeElements codeElements<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">foreach</span><span style="color: #008000;">(</span>CodeElement element <span style="color: #0600FF; font-weight: bold;">in</span> codeElements<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+        <span style="color: #0600FF; font-weight: bold;">foreach</span> <span style="color: #008000;">(</span>CodeElement descendant <span style="color: #0600FF; font-weight: bold;">in</span> CodeElementDescendantsAndSelf<span style="color: #008000;">(</span>element<span style="color: #008000;">)</span><span style="color: #008000;">)</span>
+        <span style="color: #008000;">{</span>
+            <span style="color: #0600FF; font-weight: bold;">yield</span> <span style="color: #0600FF; font-weight: bold;">return</span> descendant<span style="color: #008000;">;</span>                
+        <span style="color: #008000;">}</span>
+    <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">public</span> IEnumerable<span style="color: #008000;">&lt;</span>CodeElement<span style="color: #008000;">&gt;</span> CodeElementDescendantsAndSelf<span style="color: #008000;">(</span>CodeElement codeElement<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">yield</span> <span style="color: #0600FF; font-weight: bold;">return</span> codeElement<span style="color: #008000;">;</span>
+&nbsp;
+    CodeElements codeElements<span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">switch</span><span style="color: #008000;">(</span>codeElement<span style="color: #008000;">.</span><span style="color: #0000FF;">Kind</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>        
+&nbsp;
+        <span style="color: #008080; font-style: italic;">/* namespaces */</span>
+        <span style="color: #0600FF; font-weight: bold;">case</span> vsCMElement<span style="color: #008000;">.</span><span style="color: #0000FF;">vsCMElementNamespace</span><span style="color: #008000;">:</span>
+        <span style="color: #008000;">{</span>
+            CodeNamespace <span style="color: #008080;">codeNamespace </span><span style="color: #008000;">=</span> <span style="color: #008000;">(</span>CodeNamespace<span style="color: #008000;">)</span>codeElement<span style="color: #008000;">;</span>                                        
+            codeElements <span style="color: #008000;">=</span> codeNamespace<span style="color: #008000;">.</span><span style="color: #0000FF;">Members</span><span style="color: #008000;">;</span>
+            <span style="color: #0600FF; font-weight: bold;">foreach</span><span style="color: #008000;">(</span>CodeElement descendant <span style="color: #0600FF; font-weight: bold;">in</span> CodeElementsDescendants<span style="color: #008000;">(</span>codeElements<span style="color: #008000;">)</span><span style="color: #008000;">)</span>
+            <span style="color: #008000;">{</span>
+                <span style="color: #0600FF; font-weight: bold;">yield</span> <span style="color: #0600FF; font-weight: bold;">return</span> descendant<span style="color: #008000;">;</span>                
+            <span style="color: #008000;">}</span>
+            <span style="color: #0600FF; font-weight: bold;">break</span><span style="color: #008000;">;</span>
+        <span style="color: #008000;">}</span>
+&nbsp;
+        <span style="color: #008080; font-style: italic;">/* Process classes */</span>
+        <span style="color: #0600FF; font-weight: bold;">case</span> vsCMElement<span style="color: #008000;">.</span><span style="color: #0000FF;">vsCMElementClass</span><span style="color: #008000;">:</span>
+        <span style="color: #008000;">{</span>            
+            CodeClass codeClass <span style="color: #008000;">=</span> <span style="color: #008000;">(</span>CodeClass<span style="color: #008000;">)</span>codeElement<span style="color: #008000;">;</span>            
+            codeElements <span style="color: #008000;">=</span> codeClass<span style="color: #008000;">.</span><span style="color: #0000FF;">Members</span><span style="color: #008000;">;</span>
+            <span style="color: #0600FF; font-weight: bold;">foreach</span><span style="color: #008000;">(</span>CodeElement descendant <span style="color: #0600FF; font-weight: bold;">in</span> CodeElementsDescendants<span style="color: #008000;">(</span>codeElements<span style="color: #008000;">)</span><span style="color: #008000;">)</span>
+            <span style="color: #008000;">{</span>                
+                <span style="color: #0600FF; font-weight: bold;">yield</span> <span style="color: #0600FF; font-weight: bold;">return</span> descendant<span style="color: #008000;">;</span>                
+            <span style="color: #008000;">}</span>            
+            <span style="color: #0600FF; font-weight: bold;">break</span><span style="color: #008000;">;</span>    
+        <span style="color: #008000;">}</span>        
+    <span style="color: #008000;">}</span>    
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>There might be simpler way of achieving this, it is the first time I have created a recursive IEnumerable implementation, so please let me know if I have done something stupid! For a much more elegant solution to the problem of creating an IEnumerable implementation on a tree like structure via recursion have a look at <a href="http://mutable.net/blog/archive/2008/05/23/using-linq-to-objects-for-recursion.aspx">this blog post by David Jade</a>. However, as I mentioned earlier, the heterogeneous nature of the DTE API onto the project structure prohibits this method. </p><p>Anyhow, with this nasty IEnumerable implementation out of the way, we can use the power of Linq to provide a concise implementation of ‘Find all the classes in the solution which have one or more DependencyPropertyDecl attributes’, and perform the required code-gen as follows:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">// for details of how the DTE 'project' is located see Daniel's blog post or the attached source of this blog.</span>
+<span style="color: #0600FF; font-weight: bold;">var</span> elements <span style="color: #008000;">=</span> CodeElementsInProjectItems<span style="color: #008000;">(</span>project<span style="color: #008000;">.</span><span style="color: #0000FF;">ProjectItems</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #0600FF; font-weight: bold;">var</span> classes <span style="color: #008000;">=</span> elements<span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Where</span><span style="color: #008000;">(</span>el <span style="color: #008000;">=&gt;</span> el<span style="color: #008000;">.</span><span style="color: #0000FF;">Kind</span> <span style="color: #008000;">==</span> vsCMElement<span style="color: #008000;">.</span><span style="color: #0000FF;">vsCMElementClass</span><span style="color: #008000;">)</span>
+                               <span style="color: #008000;">.</span><span style="color: #0000FF;">Cast</span><span style="color: #008000;">&lt;</span>CodeClass<span style="color: #008000;">&gt;</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+                               <span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Where</span><span style="color: #008000;">(</span>cl <span style="color: #008000;">=&gt;</span> Attributes<span style="color: #008000;">(</span>cl<span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Any</span><span style="color: #008000;">(</span>at <span style="color: #008000;">=&gt;</span> at<span style="color: #008000;">.</span><span style="color: #0000FF;">Name</span><span style="color: #008000;">==</span><span style="color: #666666;">"DependencyPropertyDecl"</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">foreach</span><span style="color: #008000;">(</span><span style="color: #0600FF; font-weight: bold;">var</span> clazz <span style="color: #0600FF; font-weight: bold;">in</span> classes<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+    GenerateClass<span style="color: #008000;">(</span>clazz<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>The GenerateClass function is a simple modification of the one I wrote for generating classes based on XML descriptions. In this implementation we acquire the CodeAttribute.Value property for each of our custom attribute instances and from there obtain the DP name, type and default value:</p><pre>
+<summary>
+/// Generates a class along with its associated DPs
+/// </summary>
+private void GenerateClass(CodeClass clazz)
+{
+    string classNamespace = clazz.Namespace.Name;
+    string className =  clazz.Name;
+
+    bool classRaisesPropertyChanged = false;
+
+#
+
+namespace </pre><p>(please forgive the lack of syntax highlighting wordpress/codeproject do not support T4 templates!)</p><p>The GenerateCLRAccessor, GenerateDependencyProperty, … functions are re-used from my previous XML-based approach to DP generation.</p><p>For a simple demonstration of this approach, here is the complete implementation for a simple range control which has a Maximum and Minimum property, where if the user enters a Minimum which is greater that the Maximum, the values are swapped:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;UserControl</span> <span style="color: #000066;">x:Class</span>=<span style="color: #ff0000;">"WpfDeclarativeDPCodeGen.RangeControl"</span></span>
+<span style="color: #009900;">    <span style="color: #000066;">xmlns</span>=<span style="color: #ff0000;">"http://schemas.microsoft.com/winfx/2006/xaml/presentation"</span></span>
+<span style="color: #009900;">    <span style="color: #000066;">xmlns:x</span>=<span style="color: #ff0000;">"http://schemas.microsoft.com/winfx/2006/xaml"</span></span>
+<span style="color: #009900;">    <span style="color: #000066;">DataContext</span>=<span style="color: #ff0000;">"{Binding RelativeSource={RelativeSource Self}}"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;StackPanel</span> <span style="color: #000066;">x:Name</span>=<span style="color: #ff0000;">"LayoutRoot"</span> <span style="color: #000066;">Background</span>=<span style="color: #ff0000;">"White"</span> <span style="color: #000066;">Orientation</span>=<span style="color: #ff0000;">"Horizontal"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBox</span>  <span style="color: #000066;">Width</span>=<span style="color: #ff0000;">"50"</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"{Binding Minimum}"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">" : "</span> <span style="color: #000066;">VerticalAlignment</span>=<span style="color: #ff0000;">"Center"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBox</span>  <span style="color: #000066;">Width</span>=<span style="color: #ff0000;">"50"</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"{Binding Maximum}"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/StackPanel<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/UserControl<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008000;">[</span>DependencyPropertyDecl<span style="color: #008000;">(</span><span style="color: #666666;">"Maximum"</span>, <span style="color: #008000;">typeof</span><span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">double</span><span style="color: #008000;">)</span>, <span style="color: #FF0000;">0.0</span><span style="color: #008000;">)</span><span style="color: #008000;">]</span>
+<span style="color: #008000;">[</span>DependencyPropertyDecl<span style="color: #008000;">(</span><span style="color: #666666;">"Minimum"</span>, <span style="color: #008000;">typeof</span><span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">double</span><span style="color: #008000;">)</span>, <span style="color: #FF0000;">0.0</span><span style="color: #008000;">)</span><span style="color: #008000;">]</span>
+<span style="color: #008000;">[</span>TypeConverter<span style="color: #008000;">(</span><span style="color: #008000;">typeof</span><span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">]</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">partial</span> <span style="color: #6666cc; font-weight: bold;">class</span> RangeControl <span style="color: #008000;">:</span> UserControl
+<span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">public</span> RangeControl<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+        InitializeComponent<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+    <span style="color: #008080; font-style: italic;">/// If max is less than min, swap their values</span>
+    <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+    <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> Swap<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+        <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>Maximum <span style="color: #008000;">&lt;</span> Minimum<span style="color: #008000;">)</span>
+        <span style="color: #008000;">{</span>
+            <span style="color: #6666cc; font-weight: bold;">double</span> swap <span style="color: #008000;">=</span> Minimum<span style="color: #008000;">;</span>
+            Minimum <span style="color: #008000;">=</span> Maximum<span style="color: #008000;">;</span>
+            Maximum <span style="color: #008000;">=</span> swap<span style="color: #008000;">;</span>
+        <span style="color: #008000;">}</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">partial</span> <span style="color: #6666cc; font-weight: bold;">void</span> OnMaximumPropertyChanged<span style="color: #008000;">(</span>DependencyPropertyChangedEventArgs e<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+        Swap<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">partial</span> <span style="color: #6666cc; font-weight: bold;">void</span> OnMinimumPropertyChanged<span style="color: #008000;">(</span>DependencyPropertyChangedEventArgs e<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+        Swap<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>When using this approach the workflow is quite simple, create your class, add the DependencyPropertyDecl attributes, then execute the code generation template. The output is an accompanying partial class which contains the DP code itself, plus partial methods which can be implemented in order to perform logic when the property changes.</p><p>I have not-yet completely ported my XML-based DP generation templates to this new declarative approach, for example the DependencyPropertyDecl attribute needs to also indicate property meta-data, whether a property is attached etc … However, I thought I would share my ideas in case I didn’t get the time (or urge) to make a complete  implementation. </p><p>I feel that this approach has great potential far beyond DP code generation, simple examples could include attributes that indicate that a T4 template should generate a ‘generic’ INotifyPropertyChanged or IEditableObject implementation, and of course, the more complex application-specific possibilities are endless. </p><p>You can download an example project containing the RangeControl above: <a href="{{ site.url }}/blog/colin/wp-content/uploads/2009/08/WpfDeclarativeDpCodeGen1.zip">WpfDeclarativeDpCodeGen.zip</a></p><p>Try adding new DependencyPropertyDecl attributes, and re-run the code generation template (right click CodeGen/GeneratedObjects.tt - Run Custom Tool), and inspect the generated output – CodeGen/GeneratedObjects.cs.</p><p>Finally, thanks to Daniel Vaughan for the inspiration.</p><p>Regards,<br />
+Colin E.</p></div>

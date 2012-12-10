@@ -1,0 +1,211 @@
+---
+author: Colin Eberhardt
+tags: 
+permalink: /blog/colin/2010/06/throttling-silverlight-mouse-events-to-keep-the-ui-responsive/index.html
+layout: colineberhardt-blog
+---
+<div class="entry"><div class="topsy_widget_data topsy_theme_light-green" style="float: right; margin-left: 0.75em; background: url(data:,%7B%20%22url%22%3A%20%22http%253A%252F%252Fwww.scottlogic.co.uk%252Fblog%252Fcolin%252F2010%252F06%252Fthrottling-silverlight-mouse-events-to-keep-the-ui-responsive%252F%22%2C%20%22style%22%3A%20%22big%22%2C%20%22title%22%3A%20%22Throttling%20Silverlight%20Mouse%20Events%20to%20Keep%20the%20UI%20Responsive%20%23%22%20%7D);"></div><p><em>If your Silverlight application performs intensive updates to the UI during mouse events, the UI can freeze because it is invalidated before it has a chance to render. This post describes a technique for ‘throttling’ mouse events to ensure that each time an event occurs, the UI has the opportunity to render.</em></p><p><b>Introduction – the problem</b></p><p>The visual tree of a Silverlight / WPF uses the <a href="http://en.wikipedia.org/wiki/Retained_mode">retained mode</a> graphics&nbsp; rendering style, where the tree forms a model of the graphics which are rendered to the screen. Any changes that are made to the visual tree by adding / removing objects or changing the properties of an object within the tree, are automatically rendered to your computer screen at some point in the future.</p><p>This graphics style makes the development of complex graphics far easier than with the <a href="http://en.wikipedia.org/wiki/Immediate_mode">immediate mode</a> counterpart. You add objects, make changes to them, and these changes are reflect on the screen by some background magic. This works just fine most of the time, however, if you continually make changes to the visual tree, without yielding, the ‘process’ which updates the UI does not have the opportunity to run, and your UI is starved.</p><p>I have found that this problem occurs most often when handling mouse events, particularly <code>MouseMove</code> and <code>MouseWheel</code>. Both of these events have the opportunity to fire very rapidly. If, when handling one of these events you make some change to the visual tree, there is the possibility that the event may be raised again before these changes are reflected on the screen. For a demonstration of this, have a play with the following simple example:</p><div id="slPluginHost1"> <object id="SilverlightPlugin1" width="500" height="250" data="data:application/x-silverlight," type="application/x-silverlight-2"><param name="source" value="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2010/06/SilverlightEventNoThrottling.xap" /><a href="http://go.microsoft.com/fwlink/?LinkID=124807" style="text-decoration: none;"> <img src="http://go.microsoft.com/fwlink/?LinkId=108181" alt="Get Microsoft Silverlight" style="border-style: none;" /></a></object></div><p>The application above creates funky patterns that track the current mouse position:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> MainPage_MouseMove<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, MouseEventArgs e<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  AddNewLine<span style="color: #008000;">(</span>e<span style="color: #008000;">.</span><span style="color: #0000FF;">GetPosition</span><span style="color: #008000;">(</span><span style="color: #0600FF; font-weight: bold;">this</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Adds a new line at the given position</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> AddNewLine<span style="color: #008000;">(</span>Point position<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>_lastPosition <span style="color: #008000;">!=</span> <span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #008080; font-style: italic;">// find the angle in which the mouse is moving</span>
+    <span style="color: #6666cc; font-weight: bold;">double</span> angleOfMovement <span style="color: #008000;">=</span> RaidansToRadians<span style="color: #008000;">(</span>Math<span style="color: #008000;">.</span><span style="color: #0000FF;">Atan2</span><span style="color: #008000;">(</span>
+        _lastPosition<span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Value</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Y</span> <span style="color: #008000;">-</span> position<span style="color: #008000;">.</span><span style="color: #0000FF;">Y</span>, _lastPosition<span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Value</span><span style="color: #008000;">.</span><span style="color: #0000FF;">X</span> <span style="color: #008000;">-</span> position<span style="color: #008000;">.</span><span style="color: #0000FF;">X</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span> <span style="color: #008000;">+</span> <span style="color: #FF0000;">90</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// move our current angle slightly in this direction</span>
+    <span style="color: #6666cc; font-weight: bold;">double</span> diff <span style="color: #008000;">=</span> DifferenceBetweenAngles<span style="color: #008000;">(</span>_angle, angleOfMovement<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    _angle <span style="color: #008000;">=</span> _angle <span style="color: #008000;">+</span> DifferenceBetweenAngles<span style="color: #008000;">(</span>_angle, angleOfMovement<span style="color: #008000;">)</span> <span style="color: #008000;">/</span> <span style="color: #FF0000;">10</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// create a line </span>
+    <span style="color: #6666cc; font-weight: bold;">double</span> dx <span style="color: #008000;">=</span> Math<span style="color: #008000;">.</span><span style="color: #0000FF;">Sin</span><span style="color: #008000;">(</span>DegreesToRadians<span style="color: #008000;">(</span>_angle<span style="color: #008000;">)</span><span style="color: #008000;">)</span> <span style="color: #008000;">*</span> diff<span style="color: #008000;">;</span>
+    <span style="color: #6666cc; font-weight: bold;">double</span> dy <span style="color: #008000;">=</span> Math<span style="color: #008000;">.</span><span style="color: #0000FF;">Cos</span><span style="color: #008000;">(</span>DegreesToRadians<span style="color: #008000;">(</span>_angle<span style="color: #008000;">)</span><span style="color: #008000;">)</span> <span style="color: #008000;">*</span> diff<span style="color: #008000;">;</span>
+    Line line <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> Line<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      X1 <span style="color: #008000;">=</span> position<span style="color: #008000;">.</span><span style="color: #0000FF;">X</span> <span style="color: #008000;">+</span> dx,
+      Y1 <span style="color: #008000;">=</span> position<span style="color: #008000;">.</span><span style="color: #0000FF;">Y</span> <span style="color: #008000;">+</span> dy,
+      X2 <span style="color: #008000;">=</span> position<span style="color: #008000;">.</span><span style="color: #0000FF;">X</span> <span style="color: #008000;">-</span> dx,
+      Y2 <span style="color: #008000;">=</span> position<span style="color: #008000;">.</span><span style="color: #0000FF;">Y</span> <span style="color: #008000;">-</span> dy,
+      Opacity <span style="color: #008000;">=</span> <span style="color: #FF0000;">0.7</span>,
+      Stroke <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> SolidColorBrush<span style="color: #008000;">(</span>Colors<span style="color: #008000;">.</span><span style="color: #0000FF;">Black</span><span style="color: #008000;">)</span>,
+      Tag <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> Data<span style="color: #008000;">(</span><span style="color: #008000;">)</span> <span style="color: #008000;">{</span> Angle <span style="color: #008000;">=</span> _angle, Length <span style="color: #008000;">=</span> diff, Position <span style="color: #008000;">=</span> position <span style="color: #008000;">}</span>
+    <span style="color: #008000;">}</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// add to canvas</span>
+    LineContainer<span style="color: #008000;">.</span><span style="color: #0000FF;">Children</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span>line<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// rotates all the lines that are currently displayed</span>
+    RotateLines<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+  _lastPosition <span style="color: #008000;">=</span> position<span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>Everything works just fine when there are &lt; 1000 lines on screen, however as more lines are added, the act of adding a new line to the visual tree becomes more expensive. As a result, the work needed to handle each event becomes so great that the UI is starved. If you move the mouse rapidly across the display, you will find that nothing happens until you stop moving your mouse, then all of a sudden the new lines appear.</p><p>Interestingly the background animation (which is performed on the <code>Tick</code> of a <code>DispatcherTimer</code>) does not starve the UI.</p><p><b>Throttling – the solution!</b></p><p>So, what to do? The answer is to throttle the event.</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2010/06/throttle.png" alt="" title="throttle" width="249" height="161" class="aligncenter size-full wp-image-664" /></p><p>No, I don’t mean that kind of throttle, I mean throttle as in “to suppress or regulate the flow of”.</p><p>What we need to do is ensure that the changes we make to the visual tree within our <code>MouseMove</code> event are reflected in the UI before we make a subsequent change. Fortunately the Silverlight / WPF frameworks expose a static <a href="http://msdn.microsoft.com/en-us/library/system.windows.media.compositiontarget.rendering%28VS.95%29.aspx"><code>CompositionTarget.Rendering</code></a> event which can be used for this purpose. This event is fired just before a frame is rendered. Therefore, to throttle the effect of the mouse event, we set a flag to indicate that we are waiting for a change to be rendered, then reset this flag just before rendering occurs.</p><p>I have wrapped this concept up in a simple class that provides a <code>ThrottledMouseMove</code> event:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Creates a 'throttled' MouseMove event which ensures that the UI</span>
+<span style="color: #008080; font-style: italic;">/// rendering is not starved.</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> ThrottledMouseMoveEvent
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">bool</span> _awaitingRender <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">false</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> UIElement _element<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> ThrottledMouseMoveEvent<span style="color: #008000;">(</span>UIElement element<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    _element <span style="color: #008000;">=</span> element<span style="color: #008000;">;</span>
+    element<span style="color: #008000;">.</span><span style="color: #0000FF;">MouseMove</span> <span style="color: #008000;">+=</span> <span style="color: #008000;">new</span> MouseEventHandler<span style="color: #008000;">(</span>Element_MouseMove<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">event</span> MouseEventHandler ThrottledMouseMove<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> Element_MouseMove<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, MouseEventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span><span style="color: #008000;">!</span>_awaitingRender<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #008080; font-style: italic;">// if we are not awaiting a render as a result of a previously handled event</span>
+      <span style="color: #008080; font-style: italic;">// raise a ThrottledMouseMove event, and add a Rendering handler so that</span>
+      <span style="color: #008080; font-style: italic;">// we can determine when this event has been acted upon.</span>
+      OnThrottledMouseMove<span style="color: #008000;">(</span>e<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      _awaitingRender <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+      CompositionTarget<span style="color: #008000;">.</span><span style="color: #0000FF;">Rendering</span> <span style="color: #008000;">+=</span> CompositionTarget_Rendering<span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>      
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> CompositionTarget_Rendering<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, EventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    _awaitingRender <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">false</span><span style="color: #008000;">;</span>
+    CompositionTarget<span style="color: #008000;">.</span><span style="color: #0000FF;">Rendering</span> <span style="color: #008000;">-=</span> CompositionTarget_Rendering<span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Raises the ThrottledMouseMove event</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">protected</span> <span style="color: #6666cc; font-weight: bold;">void</span> OnThrottledMouseMove<span style="color: #008000;">(</span>MouseEventArgs args<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>ThrottledMouseMove<span style="color: #008000;">!=</span><span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      ThrottledMouseMove<span style="color: #008000;">(</span>_element, args<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>The <code>_awaitingRender</code> flag ensure that we do not starve the UI. Note, the <code>CompositionTarget.Rendering</code> event handler removes itself after handling the event, this is because the presence of the handler causes Silverlight to <a href="http://msdn.microsoft.com/en-us/library/bb613584.aspx#CompositionTarget_Rendering_Event">continuously animate</a>.</p><p>To use this code simply substitute the regular <code>MouseMove</code> event handler with our throttled event:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">// standard mouse move event handling</span>
+MouseHandler<span style="color: #008000;">.</span><span style="color: #0000FF;">MouseMove</span> <span style="color: #008000;">+=</span> <span style="color: #008000;">new</span> MouseEventHandler<span style="color: #008000;">(</span>MainPage_MouseMove<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">// Replace with ...</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">// throttled mouse move event handling</span>
+<span style="color: #0600FF; font-weight: bold;">var</span> throttledEvent <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> ThrottledMouseMoveEvent<span style="color: #008000;">(</span>MouseHandler<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+throttledEvent<span style="color: #008000;">.</span><span style="color: #0000FF;">ThrottledMouseMove</span> <span style="color: #008000;">+=</span> <span style="color: #008000;">new</span> MouseEventHandler<span style="color: #008000;">(</span>ThrottledEvent_ThrottledMouseMove<span style="color: #008000;">)</span><span style="color: #008000;">;</span></pre></td></tr></table></div><p>As a result, the UI remains responsive:</p><div id="slPluginHost2"> <object id="SilverlightPlugin2" width="500" height="250" data="data:application/x-silverlight," type="application/x-silverlight-2"><param name="source" value="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2010/06/SilverlightEventThrottling.xap" /><a href="http://go.microsoft.com/fwlink/?LinkID=124807" style="text-decoration: none;"> <img src="http://go.microsoft.com/fwlink/?LinkId=108181" alt="Get Microsoft Silverlight" style="border-style: none;" /></a></object></div><p><b>Throttling the Mouse Wheel event</b></p><p>The <code>MouseWheel</code> event is another mouse event that fires very rapidly and can result in the UI becoming frozen. Again, the same technique can be used to throttle this event. However, with the <code>MouseMove</code> event, the event arguments carry the current mouse position, the <code>MouseWheel</code> event carries just the mouse wheel position delta. If we simply suppress events that occur before render, the UI will not respond correctly, with a smaller delta being applied than is required. </p><p>The code shown below is a slightly more complex class for throttling the <code>MouseWheel</code> event. This class aggregates all the <code>MouseWheel</code> events that occur before the UI is rendered, supplying a total delta:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"> <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// A class that adapts the MouseWheel event for a UIElement to ensure that </span>
+<span style="color: #008080; font-style: italic;">/// multiple events are not handled and acted upon without the UI being re-rendered.</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> ThrottledMouseWheelEvent
+<span style="color: #008000;">{</span>
+  <span style="color: #008080;">#region fields</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Source element for the MouseWheel event</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> UIElement _source<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// The combined mouse-wheel delta</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">int</span> _combinedDelta<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// A flag that indicates that a ThrottledMouseWheel event has been raised and we are waiting for</span>
+  <span style="color: #008080; font-style: italic;">/// the next Rendering event.</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">bool</span> _awaitingRender <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">false</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080;">#endregion</span>
+&nbsp;
+  <span style="color: #008080;">#region public API</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// A 'throttled' MouseWheel event</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">event</span> EventHandler<span style="color: #008000;">&lt;</span>ThrottledMouseWheelEventArgs<span style="color: #008000;">&gt;</span> ThrottledMouseWheel<span style="color: #008000;">;</span>
+&nbsp;
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> ThrottledMouseWheelEvent<span style="color: #008000;">(</span>UIElement source<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    _source <span style="color: #008000;">=</span> source<span style="color: #008000;">;</span>
+    _source<span style="color: #008000;">.</span><span style="color: #0000FF;">MouseWheel</span> <span style="color: #008000;">+=</span> <span style="color: #008000;">new</span> MouseWheelEventHandler<span style="color: #008000;">(</span>Source_MouseWheel<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080;">#endregion</span>
+&nbsp;
+  <span style="color: #008080;">#region private methods</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> CompositionTarget_Rendering<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, EventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    Debug<span style="color: #008000;">.</span><span style="color: #0000FF;">WriteLine</span><span style="color: #008000;">(</span><span style="color: #666666;">"CompositionTarget.Rendering Fired"</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>_awaitingRender<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #008080; font-style: italic;">// if we have stored delta values, raise another ThrottledMouseWheel events</span>
+      <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>_combinedDelta <span style="color: #008000;">!=</span> <span style="color: #FF0000;">0</span><span style="color: #008000;">)</span>
+      <span style="color: #008000;">{</span>
+        OnThrottledMouseWheel<span style="color: #008000;">(</span>_combinedDelta<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      <span style="color: #008000;">}</span>
+      _combinedDelta <span style="color: #008000;">=</span> <span style="color: #FF0000;">0</span><span style="color: #008000;">;</span>
+      _awaitingRender <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">false</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    CompositionTarget<span style="color: #008000;">.</span><span style="color: #0000FF;">Rendering</span> <span style="color: #008000;">-=</span> CompositionTarget_Rendering<span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Handles mouse wheel events from the source, either firing the ThrottledMouseWheel event,</span>
+  <span style="color: #008080; font-style: italic;">/// or queueing the event until a render has occured.</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> Source_MouseWheel<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, MouseWheelEventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    Debug<span style="color: #008000;">.</span><span style="color: #0000FF;">WriteLine</span><span style="color: #008000;">(</span><span style="color: #666666;">"Mousewheel Event e.Delta: "</span> <span style="color: #008000;">+</span> e<span style="color: #008000;">.</span><span style="color: #0000FF;">Delta</span><span style="color: #008000;">.</span><span style="color: #0000FF;">ToString</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span><span style="color: #008000;">!</span>_awaitingRender<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #008080; font-style: italic;">// if we are not awaiting a render as a result of a previously handled event</span>
+      <span style="color: #008080; font-style: italic;">// raise a ThrottledMouseWheel event, and add a Rendering handler so that</span>
+      <span style="color: #008080; font-style: italic;">// we can determine when this event has been acted upon.</span>
+      OnThrottledMouseWheel<span style="color: #008000;">(</span>e<span style="color: #008000;">.</span><span style="color: #0000FF;">Delta</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      _combinedDelta <span style="color: #008000;">=</span> <span style="color: #FF0000;">0</span><span style="color: #008000;">;</span>
+      _awaitingRender <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+      CompositionTarget<span style="color: #008000;">.</span><span style="color: #0000FF;">Rendering</span> <span style="color: #008000;">+=</span> CompositionTarget_Rendering<span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+    <span style="color: #0600FF; font-weight: bold;">else</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #008080; font-style: italic;">// if we are awaiting a render, store this delta value</span>
+      _combinedDelta <span style="color: #008000;">+=</span> e<span style="color: #008000;">.</span><span style="color: #0000FF;">Delta</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Raises the ThrottledMouseWheel event.</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">protected</span> <span style="color: #6666cc; font-weight: bold;">void</span> OnThrottledMouseWheel<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">int</span> delta<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>ThrottledMouseWheel <span style="color: #008000;">!=</span> <span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      ThrottledMouseWheel<span style="color: #008000;">(</span>_source, <span style="color: #008000;">new</span> ThrottledMouseWheelEventArgs<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+      <span style="color: #008000;">{</span>
+        Delta <span style="color: #008000;">=</span> delta
+      <span style="color: #008000;">}</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080;">#endregion</span>
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Provides data for the ThrottledMouseWheel event.</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> ThrottledMouseWheelEventArgs <span style="color: #008000;">:</span> EventArgs
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">int</span> Delta <span style="color: #008000;">{</span> <span style="color: #0600FF; font-weight: bold;">get</span><span style="color: #008000;">;</span> <span style="color: #0600FF; font-weight: bold;">internal</span> <span style="color: #0600FF; font-weight: bold;">set</span><span style="color: #008000;">;</span> <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>The following application combines both of these throttled mouse event handlers:</p><div id="slPluginHost3"> <object id="SilverlightPlugin3" width="500" height="250" data="data:application/x-silverlight," type="application/x-silverlight-2"><param name="source" value="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2010/06/SilverlightEventThrottling2.xap" /><a href="http://go.microsoft.com/fwlink/?LinkID=124807" style="text-decoration: none;"> <img src="http://go.microsoft.com/fwlink/?LinkId=108181" alt="Get Microsoft Silverlight" style="border-style: none;" /></a></object></div><p></p><p>You can download the full source for this blog post: <a href="{{ site.url }}/blog/colin/wp-content/uploads/2010/06/SilverlightEventThrottling.zip">SilverlightEventThrottling.zip</a></p><p>Regards, Colin E.</p></div>

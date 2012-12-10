@@ -1,0 +1,193 @@
+---
+author: Colin Eberhardt
+tags: delegate, multicast, objective-c
+permalink: /blog/colin/2012/11/a-multicast-delegate-pattern-for-ios-controls/index.html
+layout: colineberhardt-blog
+---
+<div class="entry"><div class="topsy_widget_data topsy_theme_light-green" style="float: right; margin-left: 0.75em; background: url(data:,%7B%20%22url%22%3A%20%22http%253A%252F%252Fwww.scottlogic.co.uk%252Fblog%252Fcolin%252F2012%252F11%252Fa-multicast-delegate-pattern-for-ios-controls%252F%22%2C%20%22style%22%3A%20%22big%22%2C%20%22title%22%3A%20%22A%20Multicast%20Delegate%20Pattern%20for%20iOS%20Controls%20%23%22%20%7D);"></div><p><em>This blog post introduces a simple pattern for adding multicasting capabilities to existing iOS controls. Adding multicasting allows for improved clarity and code re-use.</em></p><div style="float: right; width: 160px; margin: 10px; padding: 10px; border: solid 1px #aaa; font-size: 0.8em;">
+<img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2012/07/me.jpg" style="float: left; margin: 5px;" /><br />
+Colin Eberhardt is CIO at <a href="http://www.shinobicontrols.com">ShinobiControls</a>, suppliers of highly interactive and fun charts, grid and UI controls for iOS developers.<br /><br />
+<a href="http://www.shinobicontrols.com"><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2012/07/shinobicontrols.png" /></a>
+</div><p>Most iOS controls have a concept of a <em>‘delegate’</em> – a protocol which is used to handle various user interactions and control state changes. If, for example, you want to detect when a <code>UIWebView</code> starts to load a web page, you set the <code>delegate</code> property to a class which adopts the <code>UIWebViewDelegate</code> protocol, and implement the <code>webViewDidStartLoad:</code> method. This works well in practice for simple cases, the fact that each control has a single associated delegate is quite limiting. There are various reasons why you might want to handle delegate messages, and naturally you might want to handle these in different parts of your code in order to promote code re-use. For this reason, a multicasting delegate would be a much better option.</p><p>The runtime behaviour of Objective-C is based on message passing between object instances. In most cases message passing is equivalent to invoking a method directly n the target object, however, it gives us the opportunity to re-route messages to one or more targets.</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2012/11/FibreOptic.jpg" alt="" title="FibreOptic" width="500" height="381" class="aligncenter size-full wp-image-2319" /></p><p><small>Image courtesy of <a href="http://www.flickr.com/photos/kainet/112885753/sizes/m/in/photostream/">kainet</a>, used under Creative Commons ShareAlike license</small></p><p>In <a href="http://www.raywenderlich.com/22174/how-to-make-a-gesture-driven-to-do-list-app-part-33">a recent article for Ray Wenrderlich’s site</a>, I demonstrated how <code>forwardingTargetForSelector:</code> could be used to forward messages from one object to another. The code below shows how a class can handle <code>UIScrollViewDelegate</code> messages, whilst forwarding these messages to a ‘chained’ delegate:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="objc" style="font-family: monospace;"><span style="color: #6e371a;">#pragma mark - UIScrollViewDelegate forwarding</span>
+<span style="color: #002200;">-</span><span style="color: #002200;">(</span><span style="color: #a61390;">BOOL</span><span style="color: #002200;">)</span>respondsToSelector<span style="color: #002200;">:</span><span style="color: #002200;">(</span><span style="color: #a61390;">SEL</span><span style="color: #002200;">)</span>aSelector <span style="color: #002200;">{</span>
+    <span style="color: #a61390;">if</span> <span style="color: #002200;">(</span><span style="color: #002200;">[</span>self.delegate respondsToSelector<span style="color: #002200;">:</span>aSelector<span style="color: #002200;">]</span><span style="color: #002200;">)</span> <span style="color: #002200;">{</span>
+        <span style="color: #a61390;">return</span> <span style="color: #a61390;">YES</span>;
+    <span style="color: #002200;">}</span>
+    <span style="color: #a61390;">return</span> <span style="color: #002200;">[</span>super respondsToSelector<span style="color: #002200;">:</span>aSelector<span style="color: #002200;">]</span>;
+<span style="color: #002200;">}</span>
+&nbsp;
+&nbsp;
+<span style="color: #002200;">-</span><span style="color: #002200;">(</span><span style="color: #a61390;">id</span><span style="color: #002200;">)</span>forwardingTargetForSelector<span style="color: #002200;">:</span><span style="color: #002200;">(</span><span style="color: #a61390;">SEL</span><span style="color: #002200;">)</span>aSelector <span style="color: #002200;">{</span>
+    <span style="color: #a61390;">if</span> <span style="color: #002200;">(</span><span style="color: #002200;">[</span>self.delegate respondsToSelector<span style="color: #002200;">:</span>aSelector<span style="color: #002200;">]</span><span style="color: #002200;">)</span> <span style="color: #002200;">{</span>
+        <span style="color: #a61390;">return</span> self.delegate;
+    <span style="color: #002200;">}</span>
+    <span style="color: #a61390;">return</span> <span style="color: #002200;">[</span>super forwardingTargetForSelector<span style="color: #002200;">:</span>aSelector<span style="color: #002200;">]</span>;
+<span style="color: #002200;">}</span></pre></td></tr></table></div><p>For more information on this example, <a href="http://www.raywenderlich.com/22174/how-to-make-a-gesture-driven-to-do-list-app-part-33">see the original article</a>.</p><p>Message forwarding allows you to handle messages sent to the delegate, forwarding them to another delegate implementation, resulting in an implementation that follows the <a href="http://en.wikipedia.org/wiki/Proxy_pattern">Proxy Pattern</a>. This does allow for multiple delegate implementations, but the use of chaining rather than multicasting is quite messy.</p><p>So, what’s the alternative? Fortunately Objective-C provides a more generic mechanism for processing messages by implementing <code>forwardInvocation:</code>. Using this to create a multicasting concept is really quite simple, so we’ll just dive right into the code for a class that provides this functionality. The interface of this class simply allows the user to add multiple delegates:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="objc" style="font-family: monospace;"><span style="color: #6e371a;">#import &lt;Foundation/Foundation.h&gt;</span>
+&nbsp;
+<span style="color: #11740a; font-style: italic;">// handles messages sent to delegates, multicasting these messages to multiple observers</span>
+<span style="color: #a61390;">@interface</span> SHCMulticastDelegate <span style="color: #002200;">:</span> <span style="color: #400080;">NSObject</span>
+&nbsp;
+<span style="color: #11740a; font-style: italic;">// Adds the given delegate implementation to the list of observers</span>
+<span style="color: #002200;">-</span> <span style="color: #002200;">(</span><span style="color: #a61390;">void</span><span style="color: #002200;">)</span>addDelegate<span style="color: #002200;">:</span><span style="color: #002200;">(</span><span style="color: #a61390;">id</span><span style="color: #002200;">)</span>delegate;
+&nbsp;
+<span style="color: #a61390;">@end</span></pre></td></tr></table></div><p>The implementation stores these delegates in an array. Whenever a message is sent to the <code>SHCMulticastDelegate</code> it determines whether the delegates can handle this message via <code>respondsToSelector:</code>, if so, <code>forwardInvocation:</code> iterates over the delegate using the supplied <code>NSInvocation </code> instance to forward the message to each of these delegates.</p><div class="wp_syntax"><table><tr><td class="code"><pre class="objc" style="font-family: monospace;"><span style="color: #6e371a;">#import "SHCMulticastDelegate.h"</span>
+&nbsp;
+<span style="color: #a61390;">@implementation</span> SHCMulticastDelegate
+<span style="color: #002200;">{</span>
+    <span style="color: #11740a; font-style: italic;">// the array of observing delegates</span>
+    <span style="color: #400080;">NSMutableArray</span><span style="color: #002200;">*</span> _delegates;
+<span style="color: #002200;">}</span>
+&nbsp;
+<span style="color: #002200;">-</span> <span style="color: #002200;">(</span><span style="color: #a61390;">id</span><span style="color: #002200;">)</span>init
+<span style="color: #002200;">{</span>
+    <span style="color: #a61390;">if</span> <span style="color: #002200;">(</span>self <span style="color: #002200;">=</span> <span style="color: #002200;">[</span>super init<span style="color: #002200;">]</span><span style="color: #002200;">)</span>
+    <span style="color: #002200;">{</span>
+        _delegates <span style="color: #002200;">=</span> <span style="color: #002200;">[</span><span style="color: #400080;">NSMutableArray</span> array<span style="color: #002200;">]</span>;
+    <span style="color: #002200;">}</span>
+    <span style="color: #a61390;">return</span> self;
+<span style="color: #002200;">}</span>
+&nbsp;
+<span style="color: #002200;">-</span> <span style="color: #002200;">(</span><span style="color: #a61390;">void</span><span style="color: #002200;">)</span>addDelegate<span style="color: #002200;">:</span><span style="color: #002200;">(</span><span style="color: #a61390;">id</span><span style="color: #002200;">)</span>delegate
+<span style="color: #002200;">{</span>
+    <span style="color: #002200;">[</span>_delegates addObject<span style="color: #002200;">:</span>delegate<span style="color: #002200;">]</span>;
+<span style="color: #002200;">}</span>
+&nbsp;
+<span style="color: #002200;">-</span> <span style="color: #002200;">(</span><span style="color: #a61390;">BOOL</span><span style="color: #002200;">)</span>respondsToSelector<span style="color: #002200;">:</span><span style="color: #002200;">(</span><span style="color: #a61390;">SEL</span><span style="color: #002200;">)</span>aSelector
+<span style="color: #002200;">{</span>
+    <span style="color: #a61390;">if</span> <span style="color: #002200;">(</span><span style="color: #002200;">[</span>super respondsToSelector<span style="color: #002200;">:</span>aSelector<span style="color: #002200;">]</span><span style="color: #002200;">)</span>
+        <span style="color: #a61390;">return</span> <span style="color: #a61390;">YES</span>;
+&nbsp;
+    <span style="color: #11740a; font-style: italic;">// if any of the delegates respond to this selector, return YES</span>
+    <span style="color: #a61390;">for</span><span style="color: #002200;">(</span><span style="color: #a61390;">id</span> delegate <span style="color: #a61390;">in</span> _delegates<span style="color: #002200;">)</span>
+    <span style="color: #002200;">{</span>
+        <span style="color: #a61390;">if</span> <span style="color: #002200;">(</span><span style="color: #002200;">[</span>delegate respondsToSelector<span style="color: #002200;">:</span>aSelector<span style="color: #002200;">]</span><span style="color: #002200;">)</span>
+        <span style="color: #002200;">{</span>
+            <span style="color: #a61390;">return</span> <span style="color: #a61390;">YES</span>;
+        <span style="color: #002200;">}</span>
+    <span style="color: #002200;">}</span>
+    <span style="color: #a61390;">return</span> <span style="color: #a61390;">NO</span>;
+<span style="color: #002200;">}</span>
+&nbsp;
+<span style="color: #002200;">-</span> <span style="color: #002200;">(</span><span style="color: #400080;">NSMethodSignature</span> <span style="color: #002200;">*</span><span style="color: #002200;">)</span>methodSignatureForSelector<span style="color: #002200;">:</span><span style="color: #002200;">(</span><span style="color: #a61390;">SEL</span><span style="color: #002200;">)</span>aSelector
+<span style="color: #002200;">{</span>
+    <span style="color: #11740a; font-style: italic;">// can this class create the signature?</span>
+    <span style="color: #400080;">NSMethodSignature</span><span style="color: #002200;">*</span> signature <span style="color: #002200;">=</span> <span style="color: #002200;">[</span>super methodSignatureForSelector<span style="color: #002200;">:</span>aSelector<span style="color: #002200;">]</span>;
+&nbsp;
+    <span style="color: #11740a; font-style: italic;">// if not, try our delegates</span>
+    <span style="color: #a61390;">if</span> <span style="color: #002200;">(</span><span style="color: #002200;">!</span>signature<span style="color: #002200;">)</span>
+    <span style="color: #002200;">{</span>
+        <span style="color: #a61390;">for</span><span style="color: #002200;">(</span><span style="color: #a61390;">id</span> delegate <span style="color: #a61390;">in</span> _delegates<span style="color: #002200;">)</span>
+        <span style="color: #002200;">{</span>
+            <span style="color: #a61390;">if</span> <span style="color: #002200;">(</span><span style="color: #002200;">[</span>delegate respondsToSelector<span style="color: #002200;">:</span>aSelector<span style="color: #002200;">]</span><span style="color: #002200;">)</span>
+            <span style="color: #002200;">{</span>
+                <span style="color: #a61390;">return</span> <span style="color: #002200;">[</span>delegate methodSignatureForSelector<span style="color: #002200;">:</span>aSelector<span style="color: #002200;">]</span>;
+            <span style="color: #002200;">}</span>
+        <span style="color: #002200;">}</span>
+    <span style="color: #002200;">}</span>
+    <span style="color: #a61390;">return</span> signature;
+<span style="color: #002200;">}</span>
+&nbsp;
+<span style="color: #002200;">-</span> <span style="color: #002200;">(</span><span style="color: #a61390;">void</span><span style="color: #002200;">)</span>forwardInvocation<span style="color: #002200;">:</span><span style="color: #002200;">(</span><span style="color: #400080;">NSInvocation</span> <span style="color: #002200;">*</span><span style="color: #002200;">)</span>anInvocation
+<span style="color: #002200;">{</span>
+    <span style="color: #11740a; font-style: italic;">// forward the invocation to every delegate</span>
+    <span style="color: #a61390;">for</span><span style="color: #002200;">(</span><span style="color: #a61390;">id</span> delegate <span style="color: #a61390;">in</span> _delegates<span style="color: #002200;">)</span>
+    <span style="color: #002200;">{</span>
+        <span style="color: #a61390;">if</span> <span style="color: #002200;">(</span><span style="color: #002200;">[</span>delegate respondsToSelector<span style="color: #002200;">:</span><span style="color: #002200;">[</span>anInvocation selector<span style="color: #002200;">]</span><span style="color: #002200;">]</span><span style="color: #002200;">)</span>
+        <span style="color: #002200;">{</span>
+            <span style="color: #002200;">[</span>anInvocation invokeWithTarget<span style="color: #002200;">:</span>delegate<span style="color: #002200;">]</span>;
+        <span style="color: #002200;">}</span>
+    <span style="color: #002200;">}</span>
+<span style="color: #002200;">}</span>
+&nbsp;
+<span style="color: #a61390;">@end</span></pre></td></tr></table></div><p>The implementation of <code>methodSignatureForSelector:</code> is required by <code>forwardInvocation:</code> as part of the standard forwarding procedure.</p><p><strong>NOTE:</strong> This implementation does nothing to check that each of the supplied delegates conform to the same delegate protocol. It could certainly be made more robust!</p><p>In practice, this class can be used as follows:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="objc" style="font-family: monospace;"><span style="color: #11740a; font-style: italic;">// add multicasting capabilities to a UITextView</span>
+SHCMulticastDelegate<span style="color: #002200;">*</span> multicast <span style="color: #002200;">=</span> <span style="color: #002200;">[</span><span style="color: #002200;">[</span>SHCMulticastDelegate alloc<span style="color: #002200;">]</span> init<span style="color: #002200;">]</span>;
+self.textView.delegate <span style="color: #002200;">=</span> multicast;
+&nbsp;
+<span style="color: #11740a; font-style: italic;">// add multiple delegates</span>
+<span style="color: #002200;">[</span>multicast addDelegate<span style="color: #002200;">:</span>_someDelegateImplementation<span style="color: #002200;">]</span>;
+<span style="color: #002200;">[</span>multicast addDelegate<span style="color: #002200;">:</span>_anotherDelegateImplementation<span style="color: #002200;">]</span>;</pre></td></tr></table></div><p>In the above code, each of the delegates that were added to the <code>SHCMulticastDelegate</code> will be informed when <code>UITextViewDelegate</code> messages are sent.</p><p>This implementation looks pretty good, but there is still room for improvement. In the above code, any class that wishes to handle message sent to the delegate must obtain a reference to the SHCMulticastDelegate instance. It would be much better if the multicasting capability could be added to the <code>UITextView</code> directly.</p><p>Categories to the rescue …</p><p>The following category adds a property to <code>UITextView</code></p><div class="wp_syntax"><table><tr><td class="code"><pre class="objc" style="font-family: monospace;"><span style="color: #6e371a;">#import &lt;UIKit/UIKit.h&gt;</span>
+<span style="color: #6e371a;">#import "SHCMulticastDelegate.h"</span>
+&nbsp;
+<span style="color: #a61390;">@interface</span> UITextView <span style="color: #002200;">(</span>Multicast<span style="color: #002200;">)</span>
+&nbsp;
+<span style="color: #a61390;">@property</span> <span style="color: #002200;">(</span>readonly<span style="color: #002200;">)</span> SHCMulticastDelegate<span style="color: #002200;">*</span> multicastDelegate;
+&nbsp;
+<span style="color: #a61390;">@end</span></pre></td></tr></table></div><p>Typically you would use an instance variable to ‘back’ a property, however, you cannot add instance variables to class using a category. Fortunately, Objective-C provides a way to associate data with an object using string keys. See the use of <code>objc_getAssociatedObject</code> in the code below:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="objc" style="font-family: monospace;"><span style="color: #6e371a;">#import "UITextView+Multicast.h"</span>
+<span style="color: #6e371a;">#import &lt;objc/runtime.h&gt;</span>
+&nbsp;
+<span style="color: #a61390;">@implementation</span> UITextView <span style="color: #002200;">(</span>Multicast<span style="color: #002200;">)</span>
+&nbsp;
+<span style="color: #400080;">NSString</span><span style="color: #002200;">*</span> <span style="color: #a61390;">const</span> UITextViewMulticastDelegateKey <span style="color: #002200;">=</span> <span style="color: #bf1d1a;">@</span><span style="color: #bf1d1a;">"multicastDelegate"</span>;
+&nbsp;
+<span style="color: #002200;">-</span> <span style="color: #002200;">(</span>SHCMulticastDelegate <span style="color: #002200;">*</span><span style="color: #002200;">)</span>multicastDelegate
+<span style="color: #002200;">{</span>
+    <span style="color: #11740a; font-style: italic;">// do we have a SHCMulticastDelegate associated with this class?</span>
+    <span style="color: #a61390;">id</span> multicastDelegate <span style="color: #002200;">=</span> objc_getAssociatedObject<span style="color: #002200;">(</span>self, <span style="color: #002200;">(</span>__bridge <span style="color: #a61390;">const</span> <span style="color: #a61390;">void</span> <span style="color: #002200;">*</span><span style="color: #002200;">)</span><span style="color: #002200;">(</span>UITextViewMulticastDelegateKey<span style="color: #002200;">)</span><span style="color: #002200;">)</span>;
+    <span style="color: #a61390;">if</span> <span style="color: #002200;">(</span>multicastDelegate <span style="color: #002200;">==</span> <span style="color: #a61390;">nil</span><span style="color: #002200;">)</span> <span style="color: #002200;">{</span>
+&nbsp;
+        <span style="color: #11740a; font-style: italic;">// if not, create one</span>
+        multicastDelegate <span style="color: #002200;">=</span> <span style="color: #002200;">[</span><span style="color: #002200;">[</span>SHCMulticastDelegate alloc<span style="color: #002200;">]</span> init<span style="color: #002200;">]</span>;
+        objc_setAssociatedObject<span style="color: #002200;">(</span>self, <span style="color: #002200;">(</span>__bridge <span style="color: #a61390;">const</span> <span style="color: #a61390;">void</span> <span style="color: #002200;">*</span><span style="color: #002200;">)</span><span style="color: #002200;">(</span>UITextViewMulticastDelegateKey<span style="color: #002200;">)</span>, multicastDelegate, OBJC_ASSOCIATION_RETAIN<span style="color: #002200;">)</span>;
+&nbsp;
+        <span style="color: #11740a; font-style: italic;">// and set it as the delegate</span>
+        self.delegate <span style="color: #002200;">=</span> multicastDelegate;
+    <span style="color: #002200;">}</span>
+&nbsp;
+    <span style="color: #a61390;">return</span> multicastDelegate;
+<span style="color: #002200;">}</span>
+&nbsp;
+<span style="color: #a61390;">@end</span></pre></td></tr></table></div><p>With the above code <code>UITextView</code> now has multicasting capabilities built in. We’ll look at how this category can be used in a slightly more in-depth example.</p><p>A common use of the <code>UITextViewDelegate</code> is to prohibit newlines in a multi-line text input. Typically this would require pasting the standard code required into the class which handles the delegate. Here we’ll see how multicasting can be used to make this code more easily re-used.</p><p>The following class handles the delegate in order to provide the hide-keyboard-on-enter behaviour:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="objc" style="font-family: monospace;"><span style="color: #6e371a;">#import &lt;Foundation/Foundation.h&gt;</span>
+&nbsp;
+<span style="color: #a61390;">@interface</span> UITextViewHideKeyboardOnEnterBehaviour <span style="color: #002200;">:</span> <span style="color: #400080;">NSObject</span> &lt;UITextViewDelegate&gt;
+&nbsp;
+<span style="color: #002200;">-</span> <span style="color: #002200;">(</span><span style="color: #a61390;">id</span><span style="color: #002200;">)</span> initWithTextView<span style="color: #002200;">:</span><span style="color: #002200;">(</span>UITextView<span style="color: #002200;">*</span><span style="color: #002200;">)</span> textView;
+&nbsp;
+<span style="color: #a61390;">@end</span></pre></td></tr></table></div><p>The implementation is pretty trivial:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="objc" style="font-family: monospace;"><span style="color: #6e371a;">#import "UITextViewHideKeyboardOnEnterBehaviour.h"</span>
+<span style="color: #6e371a;">#import "UITextView+Multicast.h"</span>
+&nbsp;
+<span style="color: #a61390;">@implementation</span> UITextViewHideKeyboardOnEnterBehaviour
+&nbsp;
+<span style="color: #002200;">-</span> <span style="color: #002200;">(</span><span style="color: #a61390;">id</span><span style="color: #002200;">)</span>initWithTextView<span style="color: #002200;">:</span><span style="color: #002200;">(</span>UITextView <span style="color: #002200;">*</span><span style="color: #002200;">)</span>textView
+<span style="color: #002200;">{</span>
+    <span style="color: #a61390;">if</span> <span style="color: #002200;">(</span>self<span style="color: #002200;">=</span><span style="color: #002200;">[</span>super init<span style="color: #002200;">]</span><span style="color: #002200;">)</span>
+    <span style="color: #002200;">{</span>
+        <span style="color: #002200;">[</span>textView.multicastDelegate addDelegate<span style="color: #002200;">:</span>self<span style="color: #002200;">]</span>;
+    <span style="color: #002200;">}</span>
+    <span style="color: #a61390;">return</span> self;
+<span style="color: #002200;">}</span>
+&nbsp;
+<span style="color: #002200;">-</span> <span style="color: #002200;">(</span><span style="color: #a61390;">BOOL</span><span style="color: #002200;">)</span>textView<span style="color: #002200;">:</span><span style="color: #002200;">(</span>UITextView <span style="color: #002200;">*</span><span style="color: #002200;">)</span>textView shouldChangeTextInRange<span style="color: #002200;">:</span><span style="color: #002200;">(</span><span style="color: #a61390;">NSRange</span><span style="color: #002200;">)</span>range replacementText<span style="color: #002200;">:</span><span style="color: #002200;">(</span><span style="color: #400080;">NSString</span> <span style="color: #002200;">*</span><span style="color: #002200;">)</span>text <span style="color: #002200;">{</span>
+    <span style="color: #11740a; font-style: italic;">// see: http://stackoverflow.com/questions/703754/how-to-dismiss-keyboard-for-uitextview-with-return-key</span>
+    <span style="color: #a61390;">if</span><span style="color: #002200;">(</span><span style="color: #002200;">[</span>text isEqualToString<span style="color: #002200;">:</span><span style="color: #bf1d1a;">@</span><span style="color: #bf1d1a;">"<span style="color: #2400d9;">\n</span>"</span><span style="color: #002200;">]</span><span style="color: #002200;">)</span> <span style="color: #002200;">{</span>
+        <span style="color: #002200;">[</span>textView resignFirstResponder<span style="color: #002200;">]</span>;
+        <span style="color: #a61390;">return</span> <span style="color: #a61390;">NO</span>;
+    <span style="color: #002200;">}</span>
+&nbsp;
+    <span style="color: #a61390;">return</span> <span style="color: #a61390;">YES</span>;
+<span style="color: #002200;">}</span>
+&nbsp;
+<span style="color: #002200;">-</span><span style="color: #002200;">(</span><span style="color: #a61390;">BOOL</span><span style="color: #002200;">)</span>textViewShouldBeginEditing<span style="color: #002200;">:</span><span style="color: #002200;">(</span>UITextView <span style="color: #002200;">*</span><span style="color: #002200;">)</span>textView
+<span style="color: #002200;">{</span>
+    <span style="color: #a61390;">return</span> <span style="color: #a61390;">YES</span>;
+<span style="color: #002200;">}</span>
+&nbsp;
+<span style="color: #a61390;">@end</span></pre></td></tr></table></div><p>This behaviour can now be added to any <code>UITextView</code> without interfering with application-specific logic. For example, this simple view controller also handles the <code>UITextViewDelegate</code> in order to display a character count:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="objc" style="font-family: monospace;"><span style="color: #a61390;">@implementation</span> ViewController 
+&nbsp;
+<span style="color: #002200;">-</span> <span style="color: #002200;">(</span><span style="color: #a61390;">void</span><span style="color: #002200;">)</span>viewDidLoad
+<span style="color: #002200;">{</span>
+    <span style="color: #002200;">[</span>super viewDidLoad<span style="color: #002200;">]</span>;
+&nbsp;
+    <span style="color: #11740a; font-style: italic;">// add the hide-keyboard-on-enter behaviour</span>
+    <span style="color: #002200;">[</span><span style="color: #002200;">[</span>UITextViewHideKeyboardOnEnterBehaviour alloc<span style="color: #002200;">]</span> initWithTextView<span style="color: #002200;">:</span>self.textView<span style="color: #002200;">]</span>;
+&nbsp;
+    <span style="color: #11740a; font-style: italic;">// add 'self' as a delegate to provide a character count</span>
+    <span style="color: #002200;">[</span>self.textView.multicastDelegate addDelegate<span style="color: #002200;">:</span>self<span style="color: #002200;">]</span>;
+&nbsp;
+<span style="color: #002200;">}</span>
+&nbsp;
+<span style="color: #002200;">-</span><span style="color: #002200;">(</span><span style="color: #a61390;">void</span><span style="color: #002200;">)</span>textViewDidChange<span style="color: #002200;">:</span><span style="color: #002200;">(</span>UITextView <span style="color: #002200;">*</span><span style="color: #002200;">)</span>textView
+<span style="color: #002200;">{</span>
+    self.countLabel.text <span style="color: #002200;">=</span> <span style="color: #002200;">[</span><span style="color: #400080;">NSString</span> stringWithFormat<span style="color: #002200;">:</span><span style="color: #bf1d1a;">@</span><span style="color: #bf1d1a;">"%d"</span>, self.textView.text.length<span style="color: #002200;">]</span>; 
+<span style="color: #002200;">}</span>
+&nbsp;
+<span style="color: #a61390;">@end</span></pre></td></tr></table></div><p>Nice <img src="http://www.scottlogic.co.uk/blog/colin/wp-includes/images/smilies/icon_smile.gif" alt=":-)" class="wp-smiley" /> </p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2012/11/Multicast.png" alt="" title="Multicast" width="300" height="564" class="aligncenter size-full wp-image-2320" /></p><p>The above example was deliberately selected because the implementation of this ‘behaviour’ is quite simple. For a more complex example, take a look at the <a href="https://github.com/ColinEberhardt/iOS-ClearStyle">‘Clear Style’</a> project I have over on github. Here I use multicasting in order to add multiple pull-to-add-new behaviours to a list, where each behaviour handles the same delegate methods. </p><p>Finally, you might have noticed that the <code>UITextViewHideKeyboardOnEnterBehaviour</code> implementation above handles a delegate method with a non-void signature. Despite the fact that we are multicasting these messages return values are still possible! I must admit I could not find any information about how the runtime handles return values when <code>invokeWithTarget:</code> is used to invoke multiple targets. Through testing I have discovered that the value returned by the last invocation is the one that is ultimately returned. I would certainly recommend caution if you plan to use this feature!</p><p>You can download the code for the simple example here: <a href="{{ site.url }}/blog/colin/wp-content/uploads/2012/11/MulticastDelegates.zip">MulticastDelegates.zip</a></p><p>Regards, Colin E.</p></div>

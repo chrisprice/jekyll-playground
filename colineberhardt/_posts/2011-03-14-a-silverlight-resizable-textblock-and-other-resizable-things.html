@@ -1,0 +1,107 @@
+---
+author: Colin Eberhardt
+tags: 
+permalink: /blog/colin/2011/03/a-silverlight-resizable-textblock-and-other-resizable-things/index.html
+layout: colineberhardt-blog
+---
+<div class="entry"><div class="topsy_widget_data topsy_theme_light-green" style="float: right; margin-left: 0.75em; background: url(data:,%7B%20%22url%22%3A%20%22http%253A%252F%252Fwww.scottlogic.co.uk%252Fblog%252Fcolin%252F2011%252F03%252Fa-silverlight-resizable-textblock-and-other-resizable-things%252F%22%2C%20%22style%22%3A%20%22big%22%2C%20%22title%22%3A%20%22A%20Silverlight%20Resizable%20TextBlock%20%28and%20other%20resizable%20things%29%20%23%22%20%7D);"></div><p><em>In this blog post I present a simple attached behaviour that uses a Thumb control within a Popup to adorn any UI element so that the user can re-size it.</em></p><p>A simple feature that has become quite popular on the web is to attache a small handle to text areas so that the user can resize them, this is useful if a user wants to add a large piece of text to a small comment form for example. Interestingly the Google Chrome browser makes all text areas resizeable by default, which leads to web developers wondering <a href="http://stackoverflow.com/questions/2096113/chrome-make-textareas-which-are-not-resizable">how to turn this feature off for their website</a>. I thought that this was a pretty useful feature, so decided to implement a little attached behaviour that would do the same think for Silverlight:</p><div style="text-align: center;"><object width="300" height="300" data="data:application/x-silverlight," type="application/x-silverlight-2"><param name="source" value="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2011/03/ResizableTextBox.xap" /><a href="http://go.microsoft.com/fwlink/?LinkID=124807" style="text-decoration: none;"> <img src="http://go.microsoft.com/fwlink/?LinkId=108181" alt="Get Microsoft Silverlight" style="border-style: none;" /></a></object></div><p>You can make any element resizable by setting the following attached property:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBox</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"This is a re-sizeable textbox"</span></span>
+<span style="color: #009900;">          <span style="color: #000066;">local:ResizeHandle.Attach</span>=<span style="color: #ff0000;">"True"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/TextBox<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><p>The implementation of this behaviour is pretty straightforward. When the Attach property changes, i.e. when it is set on an element a Thumb and a Popup are created:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">static</span> Dictionary<span style="color: #008000;">&lt;</span>FrameworkElement, Popup<span style="color: #008000;">&gt;</span> _popups <span style="color: #008000;">=</span>
+    <span style="color: #008000;">new</span> Dictionary<span style="color: #008000;">&lt;</span>FrameworkElement, Popup<span style="color: #008000;">&gt;</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">void</span> OnAttachedPropertyChanged<span style="color: #008000;">(</span>DependencyObject d,
+  DependencyPropertyChangedEventArgs e<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  FrameworkElement element <span style="color: #008000;">=</span> d <span style="color: #0600FF; font-weight: bold;">as</span> FrameworkElement<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// Create a popup.</span>
+  <span style="color: #0600FF; font-weight: bold;">var</span> popup <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> Popup<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// and associate it with the element that can be re-sized</span>
+  _popups<span style="color: #008000;">[</span>element<span style="color: #008000;">]</span> <span style="color: #008000;">=</span> popup<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// Add a thumb to the pop-up</span>
+  Thumb thumb <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> Thumb<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    Style <span style="color: #008000;">=</span> Application<span style="color: #008000;">.</span><span style="color: #0000FF;">Current</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Resources</span><span style="color: #008000;">[</span><span style="color: #666666;">"MyThumbStyle"</span><span style="color: #008000;">]</span> <span style="color: #0600FF; font-weight: bold;">as</span> Style
+  <span style="color: #008000;">}</span><span style="color: #008000;">;</span>
+  popup<span style="color: #008000;">.</span><span style="color: #0000FF;">Child</span> <span style="color: #008000;">=</span> thumb<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// add a relationship from the thumb to the target</span>
+  thumb<span style="color: #008000;">.</span><span style="color: #0000FF;">Tag</span> <span style="color: #008000;">=</span> element<span style="color: #008000;">;</span>
+&nbsp;
+  popup<span style="color: #008000;">.</span><span style="color: #0000FF;">IsOpen</span> <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+&nbsp;
+  thumb<span style="color: #008000;">.</span><span style="color: #0000FF;">DragDelta</span> <span style="color: #008000;">+=</span> <span style="color: #008000;">new</span> DragDeltaEventHandler<span style="color: #008000;">(</span>Thumb_DragDelta<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  element<span style="color: #008000;">.</span><span style="color: #0000FF;">SizeChanged</span> <span style="color: #008000;">+=</span> <span style="color: #008000;">new</span> SizeChangedEventHandler<span style="color: #008000;">(</span>Element_SizeChanged<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>A static dictionary is used to relate the elements which have this property set o their respective Popup. The Thumb is styled via a Style which is looked up from the application resources. The following style re-templates the Thumb, replacing its visuals with an image:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Application</span> <span style="color: #000066;">xmlns</span>=<span style="color: #ff0000;">"http://schemas.microsoft.com/winfx/2006/xaml/presentation"</span></span>
+<span style="color: #009900;">             <span style="color: #000066;">xmlns:x</span>=<span style="color: #ff0000;">"http://schemas.microsoft.com/winfx/2006/xaml"</span> </span>
+<span style="color: #009900;">             <span style="color: #000066;">x:Class</span>=<span style="color: #ff0000;">"ResizableTextBox.App"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Application.Resources<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+&nbsp;
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Style</span> <span style="color: #000066;">TargetType</span>=<span style="color: #ff0000;">"Thumb"</span> <span style="color: #000066;">x:Key</span>=<span style="color: #ff0000;">"MyThumbStyle"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Setter</span> <span style="color: #000066;">Property</span>=<span style="color: #ff0000;">"Template"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Setter.Value<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+          <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ControlTemplate</span> <span style="color: #000066;">TargetType</span>=<span style="color: #ff0000;">"Thumb"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+            <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Image</span> <span style="color: #000066;">Source</span>=<span style="color: #ff0000;">"handle.png"</span></span>
+<span style="color: #009900;">                   <span style="color: #000066;">Margin</span>=<span style="color: #ff0000;">"2"</span></span>
+<span style="color: #009900;">                   <span style="color: #000066;">Opacity</span>=<span style="color: #ff0000;">"0.6"</span></span>
+<span style="color: #009900;">                   <span style="color: #000066;">Cursor</span>=<span style="color: #ff0000;">"SizeNWSE"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+          <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/ControlTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Setter.Value<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Setter<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Style<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Application.Resources<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Application<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><p>Whenever the element changes size we need to reposition the Popup so that the thumb always remains on the bottom-right edge of the element:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Handle size changes repositioning the thumb / popup</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">void</span> Element_SizeChanged<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, SizeChangedEventArgs e<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  FrameworkElement element <span style="color: #008000;">=</span> sender <span style="color: #0600FF; font-weight: bold;">as</span> FrameworkElement<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// find the popup that hosts the thumb</span>
+  <span style="color: #0600FF; font-weight: bold;">var</span> popup <span style="color: #008000;">=</span> _popups<span style="color: #008000;">[</span>element<span style="color: #008000;">]</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// reposition the popup</span>
+  FrameworkElement root <span style="color: #008000;">=</span> Application<span style="color: #008000;">.</span><span style="color: #0000FF;">Current</span><span style="color: #008000;">.</span><span style="color: #0000FF;">RootVisual</span> <span style="color: #0600FF; font-weight: bold;">as</span> FrameworkElement<span style="color: #008000;">;</span>
+  Point elementLocation <span style="color: #008000;">=</span> GetRelativePosition<span style="color: #008000;">(</span>element, root<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">var</span> childElement <span style="color: #008000;">=</span> popup<span style="color: #008000;">.</span><span style="color: #0000FF;">Child</span> <span style="color: #0600FF; font-weight: bold;">as</span> FrameworkElement<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// Set where the popup will show up on the screen.</span>
+  popup<span style="color: #008000;">.</span><span style="color: #0000FF;">VerticalOffset</span> <span style="color: #008000;">=</span> elementLocation<span style="color: #008000;">.</span><span style="color: #0000FF;">Y</span> <span style="color: #008000;">+</span> element<span style="color: #008000;">.</span><span style="color: #0000FF;">ActualHeight</span> <span style="color: #008000;">-</span> childElement<span style="color: #008000;">.</span><span style="color: #0000FF;">ActualHeight</span><span style="color: #008000;">;</span>
+  popup<span style="color: #008000;">.</span><span style="color: #0000FF;">HorizontalOffset</span> <span style="color: #008000;">=</span> elementLocation<span style="color: #008000;">.</span><span style="color: #0000FF;">X</span> <span style="color: #008000;">+</span> element<span style="color: #008000;">.</span><span style="color: #0000FF;">ActualWidth</span> <span style="color: #008000;">-</span> childElement<span style="color: #008000;">.</span><span style="color: #0000FF;">ActualWidth</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">static</span> Point GetRelativePosition<span style="color: #008000;">(</span>UIElement element, UIElement otherElement<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">return</span> element<span style="color: #008000;">.</span><span style="color: #0000FF;">TransformToVisual</span><span style="color: #008000;">(</span>otherElement<span style="color: #008000;">)</span>
+                <span style="color: #008000;">.</span><span style="color: #0000FF;">Transform</span><span style="color: #008000;">(</span><span style="color: #008000;">new</span> Point<span style="color: #008000;">(</span><span style="color: #FF0000;">0</span>, <span style="color: #FF0000;">0</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>And finally, when the thumb is dragged, we resize the element to which it is associated:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Handles drag events from the thumb, resizing the associated element</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">void</span> Thumb_DragDelta<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, DragDeltaEventArgs e<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  Thumb thumb <span style="color: #008000;">=</span> sender <span style="color: #0600FF; font-weight: bold;">as</span> Thumb<span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">var</span> fe <span style="color: #008000;">=</span> thumb<span style="color: #008000;">.</span><span style="color: #0000FF;">Tag</span> <span style="color: #0600FF; font-weight: bold;">as</span> FrameworkElement<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// set the Width / Height of the element</span>
+  <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>fe<span style="color: #008000;">.</span><span style="color: #0000FF;">Width</span> <span style="color: #008000;">==</span> <span style="color: #FF0000;">0.0</span> <span style="color: #008000;">||</span> <span style="color: #6666cc; font-weight: bold;">double</span><span style="color: #008000;">.</span><span style="color: #0000FF;">IsNaN</span><span style="color: #008000;">(</span>fe<span style="color: #008000;">.</span><span style="color: #0000FF;">Width</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    fe<span style="color: #008000;">.</span><span style="color: #0000FF;">Width</span> <span style="color: #008000;">=</span> fe<span style="color: #008000;">.</span><span style="color: #0000FF;">ActualWidth</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+  <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>fe<span style="color: #008000;">.</span><span style="color: #0000FF;">Height</span> <span style="color: #008000;">==</span> <span style="color: #FF0000;">0.0</span> <span style="color: #008000;">||</span> <span style="color: #6666cc; font-weight: bold;">double</span><span style="color: #008000;">.</span><span style="color: #0000FF;">IsNaN</span><span style="color: #008000;">(</span>fe<span style="color: #008000;">.</span><span style="color: #0000FF;">Height</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    fe<span style="color: #008000;">.</span><span style="color: #0000FF;">Height</span> <span style="color: #008000;">=</span> fe<span style="color: #008000;">.</span><span style="color: #0000FF;">ActualHeight</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// apply the drag deltas</span>
+  <span style="color: #6666cc; font-weight: bold;">double</span> newWidth <span style="color: #008000;">=</span> fe<span style="color: #008000;">.</span><span style="color: #0000FF;">Width</span> <span style="color: #008000;">+</span> e<span style="color: #008000;">.</span><span style="color: #0000FF;">HorizontalChange</span><span style="color: #008000;">;</span>
+  fe<span style="color: #008000;">.</span><span style="color: #0000FF;">Width</span> <span style="color: #008000;">=</span> Math<span style="color: #008000;">.</span><span style="color: #0000FF;">Max</span><span style="color: #008000;">(</span><span style="color: #FF0000;">0</span>, newWidth<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #6666cc; font-weight: bold;">double</span> newHeight <span style="color: #008000;">=</span> fe<span style="color: #008000;">.</span><span style="color: #0000FF;">Height</span> <span style="color: #008000;">+</span> e<span style="color: #008000;">.</span><span style="color: #0000FF;">VerticalChange</span><span style="color: #008000;">;</span>
+  fe<span style="color: #008000;">.</span><span style="color: #0000FF;">Height</span> <span style="color: #008000;">=</span> Math<span style="color: #008000;">.</span><span style="color: #0000FF;">Max</span><span style="color: #008000;">(</span><span style="color: #FF0000;">0</span>, newHeight<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>And that’s it! Nice and simple.</p><p>You can download the sourcecode here: <a href="{{ site.url }}/blog/colin/wp-content/uploads/2011/03/Resizable.zip">Resizable.zip</a></p><p>Regards,<br />
+Colin E.</p></div>

@@ -1,0 +1,194 @@
+---
+author: Colin Eberhardt
+tags: presentation, WP7
+permalink: /blog/colin/2010/10/silverlight-as-an-alternative-to-powerpoint/index.html
+layout: colineberhardt-blog
+---
+<div class="entry"><div class="topsy_widget_data topsy_theme_light-green" style="float: right; margin-left: 0.75em; background: url(data:,%7B%20%22url%22%3A%20%22http%253A%252F%252Fwww.scottlogic.co.uk%252Fblog%252Fcolin%252F2010%252F10%252Fsilverlight-as-an-alternative-to-powerpoint%252F%22%2C%20%22style%22%3A%20%22big%22%2C%20%22title%22%3A%20%22Silverlight%20as%20an%20alternative%20to%20PowerPoint%20%23%22%20%7D);"></div><p><em>Recently I gave a presentation on cross platform application development with Silverlight, WPF and WP7. I wanted to move away from the standard PowerPoint bullet-point driven presentation style, so decided to create a presentation as a Silverlight application running in full-screen mode. This blog post describes the steps I took to create this.</em></p><p>PowerPoint is a very popular tool for the rapid creation of presentations, however, PowerPoint presentations have the problem that they tend to look-alike, due to them being built upon ‘stock’ templates, clip art and animated transitions. Interestingly data visualisation guru Edward Tufte goes further that just criticising the cosmetics of PowePoint. In his book “<a href="http://www.ibm.com/developerworks/rational/library/2051.html">The Cognitive Style of PowerPoint</a>“, he claims that the bullet-point, abbreviated-text style of PowerPoint foreshortens evidence and thought!</p><p>For my presentation at a recent <a href="{{ site.url }}/2010/10/unifying-development-across-the-desktop-web-and-mobile-scott-logic-points-the-way/">Scott Logic / Microsoft</a> event I wanted to avoid using bullet-points as much as possible. I decided to make my presentation mostly graphical, putting more emphasis on the verbal delivery of the content. The subject of the talk was how <a href="{{ site.url }}/blog/colin/2010/10/white-paper-silverlight-wpf-and-windows-phone-7-cross-platform-development/">Silverlight and WPF are unifying cross platform development</a>, so I thought, why not use a full-screen Silverlight application to deliver the presentation?</p><p>Taking inspiration from the <a href="http://en.wikipedia.org/wiki/Metro_Design_Language">Metro Design Language</a> and the Windows Phone 7 <a href="http://en.wikipedia.org/wiki/Metro_Design_Language">Panorama control</a>, here is the presentation I created:</p><div style="text-align: center;"><object width="500" height="350" data="data:application/x-silverlight," type="application/x-silverlight-2"><param name="source" value="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2010/10/Presentation2.xap" /><a href="http://go.microsoft.com/fwlink/?LinkID=124807" style="text-decoration: none;"> <img src="http://go.microsoft.com/fwlink/?LinkId=108181" alt="Get Microsoft Silverlight" style="border-style: none;" /></a></object></div><p><em>Mouse-over to see the forward / back / full-screen controls, also left / right mouse button clicks navigate forwards / backwards</em></p><p>Whilst it is graphically quite rich, and includes animated transitions, I feel that by writing the presentation as a Silverlight application, it further re-enforces the contents of the talk. (at least that is my excuse for not following Edward Tufte’s teachings to the letter!).</p><p>The presentation also works just fine on Windows Phone 7, with just a few tweaks required for the small differences in user interaction:</p><div style="text-align: center;"><object width="425" height="344"><param name="movie" value="http://www.youtube.com/v/nIuGJQZcsTY?fs=1&amp;hl=en_US" /><param name="allowFullScreen" value="true" /><param name="allowscriptaccess" value="always" /><embed src="http://www.youtube.com/v/nIuGJQZcsTY?fs=1&amp;hl=en_US" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" width="425" height="344" /></object></div><p><em>With the WP7 version, you navigate by clicking on either the left or right hand side of the phone’s screen.</em></p><p><br /><br /><br />
+The following section is a small collection of notes on the implementation of this presentation and the sourcecode is given at the end of this post.</p><p>The basic structure of the presentation is quite simple, with the individual slides created as user controls. These control each wrap their content in a <a href="http://msdn.microsoft.com/en-us/library/system.windows.controls.viewbox%28VS.95%29.aspx">Viewbox</a> control so that the entire slide is scaled when the presentation is run in full-screen mode. (Note, WP7 does not have a Viewbox control, however it has a fixed screen resolution, so each slide has a hard-coded width / height).</p><p>The slides are contained with a presenter which is responsible for displaying a single slide and animating their transitions:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;local:PanormicSlidePresenter</span> <span style="color: #000066;">Title</span>=<span style="color: #ff0000;">"WPF and Silvelight; Unification"</span> <span style="color: #000066;">SelectedIndex</span>=<span style="color: #ff0000;">"0"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;slide:FrontPage</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;slide:Timeline</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;slide:PlatformDifferences</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;slide:SeparateTeams</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;slide:UnifiedTeams</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/local:PanormicSlidePresenter<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><p>The PanormicSlidePresenter is a subclass of ListBox, which provides the ability to select a single slide, with the PanormicSlidePresenter ensuring that only the selected slide is visible. The template for the PanormicSlidePresenter uses a horizontal stack panel as the container for the slides. It also has a TextBlock which renders the title of the slide deck. These elements each have a Storyboard which is triggered in code-behind to animate the slides into view.</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Style</span> <span style="color: #000066;">TargetType</span>=<span style="color: #ff0000;">"local:PanormicSlidePresenter"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+  <span style="color: #808080; font-style: italic;">&lt;!-- a ListBoxItem style that removes that removes the selected / enabled state elements --&gt;</span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Setter</span> <span style="color: #000066;">Property</span>=<span style="color: #ff0000;">"ItemContainerStyle"</span> <span style="color: #000066;">Value</span>=<span style="color: #ff0000;">"{StaticResource ListBoxItemStyle}"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Setter</span> <span style="color: #000066;">Property</span>=<span style="color: #ff0000;">"ItemsPanel"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Setter.Value<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ItemsPanelTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;StackPanel</span> <span style="color: #000066;">Orientation</span>=<span style="color: #ff0000;">"Horizontal"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/ItemsPanelTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Setter.Value<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Setter<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Setter</span> <span style="color: #000066;">Property</span>=<span style="color: #ff0000;">"Template"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Setter.Value<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ControlTemplate</span> <span style="color: #000066;">TargetType</span>=<span style="color: #ff0000;">"local:PanormicSlidePresenter"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Grid</span> <span style="color: #000066;">local:Clip.ToBounds</span>=<span style="color: #ff0000;">"True"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>      
+          <span style="color: #808080; font-style: italic;">&lt;!-- the title for this slide presenter --&gt;</span>
+          <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Canvas</span> <span style="color: #000066;">VerticalAlignment</span>=<span style="color: #ff0000;">"Top"</span> <span style="color: #000066;">HorizontalAlignment</span>=<span style="color: #ff0000;">"Left"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+            <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Viewbox</span> <span style="color: #000066;">x:Name</span>=<span style="color: #ff0000;">"Title"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+              <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Viewbox.Resources<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Storyboard</span> <span style="color: #000066;">x:Key</span>=<span style="color: #ff0000;">"animation"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+                  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;DoubleAnimation</span>  <span style="color: #000066;">Storyboard.TargetProperty</span>=<span style="color: #ff0000;">"(Canvas.Left)"</span></span>
+<span style="color: #009900;">                                    <span style="color: #000066;">To</span>=<span style="color: #ff0000;">"360"</span> <span style="color: #000066;">Duration</span>=<span style="color: #ff0000;">"0:0:0.5"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+                    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;DoubleAnimation.EasingFunction<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;SineEase</span> <span style="color: #000066;">EasingMode</span>=<span style="color: #ff0000;">"EaseOut"</span> <span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+                    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/DoubleAnimation.EasingFunction<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/DoubleAnimation<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Storyboard<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+              <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Viewbox.Resources<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+              <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"{TemplateBinding Title}"</span> <span style="color: #000066;">Foreground</span>=<span style="color: #ff0000;">"#444"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+            <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Viewbox<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+          <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Canvas<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+&nbsp;
+          <span style="color: #808080; font-style: italic;">&lt;!-- the presenter which renders the slides--&gt;</span>
+          <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Canvas</span> <span style="color: #000000; font-weight: bold;">&gt;</span></span>
+            <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ItemsPresenter</span> <span style="color: #000066;">x:Name</span>=<span style="color: #ff0000;">"ItemsPresenter"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+              <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ItemsPresenter.Resources<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Storyboard</span> <span style="color: #000066;">x:Key</span>=<span style="color: #ff0000;">"animation"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+                  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;DoubleAnimation</span>  <span style="color: #000066;">Storyboard.TargetProperty</span>=<span style="color: #ff0000;">"(Canvas.Left)"</span></span>
+<span style="color: #009900;">                                      <span style="color: #000066;">To</span>=<span style="color: #ff0000;">"360"</span> <span style="color: #000066;">Duration</span>=<span style="color: #ff0000;">"0:0:0.5"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+                    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;DoubleAnimation.EasingFunction<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;SineEase</span> <span style="color: #000066;">EasingMode</span>=<span style="color: #ff0000;">"EaseOut"</span> <span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+                    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/DoubleAnimation.EasingFunction<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/DoubleAnimation<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+                <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Storyboard<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+              <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/ItemsPresenter.Resources<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+            <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/ItemsPresenter<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+          <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Canvas<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Grid<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/ControlTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Setter.Value<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Setter<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Style<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><p>The code for the PanormicSlidePresenter is pretty simple, it basically performs two tasks. Firstly, it ensures that the size of each of the slides it contains matches its own size, this ensures that each slide fills the entire screen. Secondly, when selection changes, it applies an offset to the  StackPanel which contains each of the slides, to bring the correct slide into view. It also applies a suitable offset to the title element to give a parallax scrolling effect which is one of the distinctive features of the Windows Phone 7 Panorama control.</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Renders a collection of elements, with animated transitions between each.</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> PanormicSlidePresenter <span style="color: #008000;">:</span> ListBox
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> ItemsPresenter _itemsPresenter<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> FrameworkElement _title<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080;">#region Title Dependency Property</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">string</span> Title
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">get</span> <span style="color: #008000;">{</span> <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">)</span>GetValue<span style="color: #008000;">(</span>TitleProperty<span style="color: #008000;">)</span><span style="color: #008000;">;</span> <span style="color: #008000;">}</span>
+    <span style="color: #0600FF; font-weight: bold;">set</span> <span style="color: #008000;">{</span> SetValue<span style="color: #008000;">(</span>TitleProperty, <span style="color: #0600FF; font-weight: bold;">value</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span> <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #0600FF; font-weight: bold;">readonly</span> DependencyProperty TitleProperty <span style="color: #008000;">=</span> DependencyProperty<span style="color: #008000;">.</span><span style="color: #0000FF;">Register</span><span style="color: #008000;">(</span><span style="color: #666666;">"Title"</span>,
+    <span style="color: #008000;">typeof</span><span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">)</span>, <span style="color: #008000;">typeof</span><span style="color: #008000;">(</span>PanormicSlidePresenter<span style="color: #008000;">)</span>, <span style="color: #008000;">new</span> PropertyMetadata<span style="color: #008000;">(</span><span style="color: #666666;">""</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080;">#endregion</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> PanormicSlidePresenter<span style="color: #008000;">(</span><span style="color: #008000;">)</span> 
+  <span style="color: #008000;">{</span>
+    DefaultStyleKey <span style="color: #008000;">=</span> <span style="color: #008000;">typeof</span><span style="color: #008000;">(</span>PanormicSlidePresenter<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">this</span><span style="color: #008000;">.</span><span style="color: #0000FF;">SelectionChanged</span> <span style="color: #008000;">+=</span> PanormicSlidePresenter_SelectionChanged<span style="color: #008000;">;</span>
+    <span style="color: #0600FF; font-weight: bold;">this</span><span style="color: #008000;">.</span><span style="color: #0000FF;">SizeChanged</span> <span style="color: #008000;">+=</span> PanormicSlidePresenter_SizeChanged<span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">override</span> <span style="color: #6666cc; font-weight: bold;">void</span> OnApplyTemplate<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">base</span><span style="color: #008000;">.</span><span style="color: #0000FF;">OnApplyTemplate</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    _itemsPresenter <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">this</span><span style="color: #008000;">.</span><span style="color: #0000FF;">GetTemplateChild</span><span style="color: #008000;">(</span><span style="color: #666666;">"ItemsPresenter"</span><span style="color: #008000;">)</span> <span style="color: #0600FF; font-weight: bold;">as</span> ItemsPresenter<span style="color: #008000;">;</span>
+    _title <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">this</span><span style="color: #008000;">.</span><span style="color: #0000FF;">GetTemplateChild</span><span style="color: #008000;">(</span><span style="color: #666666;">"Title"</span><span style="color: #008000;">)</span> <span style="color: #0600FF; font-weight: bold;">as</span> FrameworkElement<span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Handle size changed events, scaling the slides and setting the required offsets</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> PanormicSlidePresenter_SizeChanged<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, SizeChangedEventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #008080; font-style: italic;">// scale each slide</span>
+    <span style="color: #0600FF; font-weight: bold;">foreach</span> <span style="color: #008000;">(</span>FrameworkElement element <span style="color: #0600FF; font-weight: bold;">in</span> Items<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      SetElementSize<span style="color: #008000;">(</span>element<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// offset to display the correct slide</span>
+    Canvas<span style="color: #008000;">.</span><span style="color: #0000FF;">SetLeft</span><span style="color: #008000;">(</span>_itemsPresenter, GetSlideOffset<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// scale and offset the title</span>
+    _title<span style="color: #008000;">.</span><span style="color: #0000FF;">Width</span> <span style="color: #008000;">=</span> ActualWidth <span style="color: #008000;">*</span> <span style="color: #FF0000;">1.5</span><span style="color: #008000;">;</span>
+    Canvas<span style="color: #008000;">.</span><span style="color: #0000FF;">SetLeft</span><span style="color: #008000;">(</span>_title, GetTitleOffset<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Compute the offset of the title base on the current selection</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">double</span> GetTitleOffset<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #008000;">-</span><span style="color: #008000;">(</span><span style="color: #008000;">(</span>ActualWidth <span style="color: #008000;">/</span> <span style="color: #FF0000;">2</span><span style="color: #008000;">)</span> <span style="color: #008000;">*</span> SelectedIndex <span style="color: #008000;">/</span> <span style="color: #008000;">(</span>Items<span style="color: #008000;">.</span><span style="color: #0000FF;">Count</span><span style="color: #008000;">-</span><span style="color: #FF0000;">1</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">///  Compute the offset required to bring the selected slide into view</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">double</span> GetSlideOffset<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #008000;">-</span>SelectedIndex <span style="color: #008000;">*</span> ActualWidth<span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Animates the current slide into view</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> ShowCurrentSlide<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    AnimateElementTo<span style="color: #008000;">(</span>_itemsPresenter, GetSlideOffset<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    AnimateElementTo<span style="color: #008000;">(</span>_title, GetTitleOffset<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Animates the given element to the given canvas offset</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> AnimateElementTo<span style="color: #008000;">(</span>FrameworkElement element, <span style="color: #6666cc; font-weight: bold;">double</span> canvasLeft<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    Storyboard anim <span style="color: #008000;">=</span> element<span style="color: #008000;">.</span><span style="color: #0000FF;">Resources</span><span style="color: #008000;">[</span><span style="color: #666666;">"animation"</span><span style="color: #008000;">]</span> <span style="color: #0600FF; font-weight: bold;">as</span> Storyboard<span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">var</span> dblAnim <span style="color: #008000;">=</span> anim<span style="color: #008000;">.</span><span style="color: #0000FF;">Children</span><span style="color: #008000;">[</span><span style="color: #FF0000;">0</span><span style="color: #008000;">]</span> <span style="color: #0600FF; font-weight: bold;">as</span> DoubleAnimation<span style="color: #008000;">;</span>
+    dblAnim<span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">From</span> <span style="color: #008000;">=</span> Canvas<span style="color: #008000;">.</span><span style="color: #0000FF;">GetLeft</span><span style="color: #008000;">(</span>element<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    dblAnim<span style="color: #008000;">.</span><span style="color: #0000FF;">To</span> <span style="color: #008000;">=</span> canvasLeft<span style="color: #008000;">;</span>
+    anim<span style="color: #008000;">.</span><span style="color: #0000FF;">Stop</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    Storyboard<span style="color: #008000;">.</span><span style="color: #0000FF;">SetTarget</span><span style="color: #008000;">(</span>anim, element<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    anim<span style="color: #008000;">.</span><span style="color: #0000FF;">Begin</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Handle selection changed to animate the slide into viee</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> PanormicSlidePresenter_SelectionChanged<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, SelectionChangedEventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>_itemsPresenter <span style="color: #008000;">==</span> <span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">)</span>
+      <span style="color: #0600FF; font-weight: bold;">return</span><span style="color: #008000;">;</span>
+&nbsp;
+    ShowCurrentSlide<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// As slide are added, set their size</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">protected</span> <span style="color: #0600FF; font-weight: bold;">override</span> <span style="color: #6666cc; font-weight: bold;">void</span> PrepareContainerForItemOverride<span style="color: #008000;">(</span>DependencyObject element, <span style="color: #6666cc; font-weight: bold;">object</span> item<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">base</span><span style="color: #008000;">.</span><span style="color: #0000FF;">PrepareContainerForItemOverride</span><span style="color: #008000;">(</span>element, item<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// scale the elements as they are added</span>
+    SetElementSize<span style="color: #008000;">(</span>item <span style="color: #0600FF; font-weight: bold;">as</span> FrameworkElement<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Sets the size of the given element to match the size of this container</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> SetElementSize<span style="color: #008000;">(</span>FrameworkElement element<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    element<span style="color: #008000;">.</span><span style="color: #0000FF;">Width</span> <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">this</span><span style="color: #008000;">.</span><span style="color: #0000FF;">ActualWidth</span><span style="color: #008000;">;</span>
+    element<span style="color: #008000;">.</span><span style="color: #0000FF;">Height</span> <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">this</span><span style="color: #008000;">.</span><span style="color: #0000FF;">ActualHeight</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>The presentation shown above also has another ‘slide presenter’ which animates transitions between its child control by spinning each into view using a RotateTransform. The code for this presenter, WheelSlidePresenter, is very similar to the panorama presenter described above. If you are interested, the sourecode is available to download below.</p><p>As an aside, I really like the way that the Visual Studio designed shows the positions of the off-screen slides. You can even change the SelectedIndex of the presenter elements in XAML and watch the animated transitions:</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2010/10/slidePresenters.png" alt="" title="slidePresenters" width="595" height="366" class="aligncenter size-full wp-image-854" /></p><p>In conclusion, I think Silverlight provides an interesting alternative to PowerPoint for presentations (although creating Silverlight presentations requires coding skills, so it is not suitable for the masses!).</p><p>You can download the full sourcecode for this presentation below:</p><p>Sourcecode for Web version: <a href="{{ site.url }}/blog/colin/wp-content/uploads/2010/10/SilverlightPresentationWeb.zip">SilverlightPresentationWeb.zip</a><br />
+Sourcecode for Windows Phone 7 version: <a href="{{ site.url }}/blog/colin/wp-content/uploads/2010/10/SilverlightPresentationMobile.zip">SilverlightPresentationMobile.zip</a></p><p>Regards,<br />
+Colin E.</p></div>

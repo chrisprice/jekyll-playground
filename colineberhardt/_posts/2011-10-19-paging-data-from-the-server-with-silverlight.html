@@ -1,0 +1,200 @@
+---
+author: Colin Eberhardt
+tags: IPagedCollectionView, JSON
+permalink: /blog/colin/2011/10/paging-data-from-the-server-with-silverlight/index.html
+layout: colineberhardt-blog
+---
+<div class="entry"><div class="topsy_widget_data topsy_theme_light-green" style="float: right; margin-left: 0.75em; background: url(data:,%7B%20%22url%22%3A%20%22http%253A%252F%252Fwww.scottlogic.co.uk%252Fblog%252Fcolin%252F2011%252F10%252Fpaging-data-from-the-server-with-silverlight%252F%22%2C%20%22style%22%3A%20%22big%22%2C%20%22title%22%3A%20%22Paging%20Data%20from%20the%20Server%20with%20Silverlight%20%23%22%20%7D);"></div><p><em>This blog post provides an implementation of IPagedCollectionView which allows paging of data from the server. An IPagedDataSource is introduced that allows any paged data source to be plugged in, with the standard controls such as DataPager making it easy to create paging applications.</em></p><p>With web-based applications, bandwidth constraints often mean that when querying large datasets, the results must be paged, i.e. split into discrete pages each containing a small number of results, with an API available for moving forwards / backwards or to a specific page. There are numerous APIs available on the web that expose this type of interface, for example:</p><ul>
+<li><a href="https://dev.twitter.com/docs/api/1/get/search">Twitter Search API</a></li>
+<li><a href="http://www.nestoria.co.uk/help/api">Nestoria API</a> for searching houses for sale</li>
+<li>Any of the <a href="http://www.odata.org/producers">OData producers</a></li>
+</ul><p>With paging being a common application requirement, Silverlight has the functionality to deal with this scenario built-in. The System.Windows.Data assembly contains the <a href="http://msdn.microsoft.com/en-us/library/system.componentmodel.ipagedcollectionview%28VS.95%29.aspx">IPagedCollectionView</a> interface, which defines the following methods, properties and events, allowing navigation of paged data:</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2011/10/PagedCollectionView.png" alt="" title="PagedCollectionView" width="154" height="211" class="aligncenter size-full wp-image-1756" /></p><p>The <code>System.Windows.Controls</code> assembly contains a <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.datapager.aspx">DataPager</a> control, that collaborates with this interface to provide a UI for paging the dataset. Simply set the Source property of this control to an instance of <code>IPagedCollectionView</code> and your user can page through the data:</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2011/10/DataPager.png" alt="" title="DataPager" width="312" height="33" class="aligncenter size-full wp-image-1755" /></p><p>NOTE: The <code>Source</code> property of <code>DataPager</code> is of type <code>IEnumerable</code>, which is a little odd, because it doesn’t really need to enumerate the collection of items being displayed. Internally it probes the object you supply as the Source to see if it implements <code>IPagedCollectionView</code>, and if it does, the control becomes ‘active’.</p><p>This control gives you quite a bit of functionality for free, the buttons become enabled / disabled based on whether navigation forwards / backwards is possible. It respects the CanChangePage property, computes the total number of pages etc …</p><p>So, how do you make use of this interface and control?</p><p>The <code>System.Windows.Data</code> assembly also contains a concrete implementation of the paging interface, <a href="http://msdn.microsoft.com/en-us/library/system.windows.data.pagedcollectionview%28VS.95%29.aspx">PagedCollectionView</a>. This class gives much more than just paging, it also implements grouping, sorting and filtering of a source collection (<code>IEnumerable</code>). To make use of this class simply construct an instance based on your collection of data and use that as your <code>DataContext</code>:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;">List<span style="color: #008000;">&lt;</span>MyDataObject<span style="color: #008000;">&gt;</span> sourceCollection <span style="color: #008000;">=</span> ParseData<span style="color: #008000;">(</span>serverResponse<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #0600FF; font-weight: bold;">var</span> collectionView <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> PagedCollectionView<span style="color: #008000;">(</span>sourceCollection<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #0600FF; font-weight: bold;">this</span><span style="color: #008000;">.</span><span style="color: #0000FF;">DataContext</span> <span style="color: #008000;">=</span> collectionView<span style="color: #008000;">;</span></pre></td></tr></table></div><p>The problem is <code>PagedCollectionView</code> allows you to sort, group and page a collection of data that is already held in memory. What I want to do, and what I think is a more common use-case, is page data that is supplied by the server. I don’t want to have to fetch all the data up-front then page it on the client, this would defeat the object of paging in the first place … to improve performance!</p><p>I discovered that there is an <code>IPagedCollectionView</code> implementation as part of RIA Services that provides this functionality, the <code>DomainCollectionView</code>. However, if I want to page data form a simple JSON formatted web service, adding a dependency to RIA Services seems like overkill. So I decided to create my own simple implementation of this interface.</p><p>In order to make a generic/ re-useable implementation of this paging interface, I first created an interface that would act as the source of the data:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Defines a source of data that can be paged.</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">interface</span> IPagedDataSource<span style="color: #008000;">&lt;</span>TDataType<span style="color: #008000;">&gt;</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Asynchronously returns the data for the given page</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #6666cc; font-weight: bold;">void</span> FetchData<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">int</span> pageNumber, Action<span style="color: #008000;">&lt;</span>PagedDataResponse<span style="color: #008000;">&lt;</span>TDataType<span style="color: #008000;">&gt;&gt;</span> responseCallback<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// The items returned as a result of a paged data request.</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> PagedDataResponse<span style="color: #008000;">&lt;</span>TDataType<span style="color: #008000;">&gt;</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// The items contained within the requested page</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> List<span style="color: #008000;">&lt;</span>TDataType<span style="color: #008000;">&gt;</span> Items <span style="color: #008000;">{</span> <span style="color: #0600FF; font-weight: bold;">get</span><span style="color: #008000;">;</span> <span style="color: #0600FF; font-weight: bold;">set</span><span style="color: #008000;">;</span> <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// The total count of all available items</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">int</span> TotalItemCount <span style="color: #008000;">{</span> <span style="color: #0600FF; font-weight: bold;">get</span><span style="color: #008000;">;</span> <span style="color: #0600FF; font-weight: bold;">set</span><span style="color: #008000;">;</span> <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>This interface is very simple, having a single method that fetches data for the given page. The result is returned asynchronously, providing both the items within the given page and the total item count.</p><p>My paging collection view extends <code>ObservableCollection</code> and takes an instance of <code>IPagedDataSource</code> in its constructor:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> ServerSidePagedCollectionView<span style="color: #008000;">&lt;</span>T<span style="color: #008000;">&gt;</span> <span style="color: #008000;">:</span> ObservableCollection<span style="color: #008000;">&lt;</span>T<span style="color: #008000;">&gt;</span>,
+  IPagedCollectionView
+<span style="color: #008000;">{</span>
+  IPagedDataSource<span style="color: #008000;">&lt;</span>T<span style="color: #008000;">&gt;</span> _pagedDataSource<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> ServerSidePagedCollectionView<span style="color: #008000;">(</span>IPagedDataSource<span style="color: #008000;">&lt;</span>T<span style="color: #008000;">&gt;</span> pagedDataSource<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    _pagedDataSource <span style="color: #008000;">=</span> pagedDataSource<span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008000;">...</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>As an aside, aren’t generics great?</p><p>The various properties defined in <code>IPagedCollectionView</code> (<code>CanChangePage</code>, <code>TotalPages</code>, etc …) are implemented as standard field-backed properties that notify changes via <code>INotifyPropertyChanged</code> which is inherited via <code>ObservableCollection</code>, I am not going to show them here.</p><p>The various methods that permit navigation are all implemented using the same pattern:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">bool</span> MoveToFirstPage<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  RefreshData<span style="color: #008000;">(</span><span style="color: #FF0000;">0</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">bool</span> MoveToLastPage<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  RefreshData<span style="color: #008000;">(</span>TotalPages <span style="color: #008000;">-</span> <span style="color: #FF0000;">1</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span>    
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">bool</span> MoveToNextPage<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  RefreshData<span style="color: #008000;">(</span>PageIndex <span style="color: #008000;">+</span> <span style="color: #FF0000;">1</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">bool</span> MoveToPage<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">int</span> pageIndex<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  RefreshData<span style="color: #008000;">(</span>pageIndex<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">bool</span> MoveToPreviousPage<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  RefreshData<span style="color: #008000;">(</span>PageIndex <span style="color: #008000;">-</span> <span style="color: #FF0000;">1</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>With the <code>RefreshData</code> method doing all the work, it is the only method that uses the supplied <code>IPagedDataSource</code> interface and is shown below:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Fetches the data for the given page</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> RefreshData<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">int</span> newPageIndex<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #008080; font-style: italic;">// set the pre-fetch state</span>
+  CanChangePage <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">false</span><span style="color: #008000;">;</span>
+  OnPageChanging<span style="color: #008000;">(</span>newPageIndex<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  _pagedDataSource<span style="color: #008000;">.</span><span style="color: #0000FF;">FetchData</span><span style="color: #008000;">(</span>newPageIndex, response <span style="color: #008000;">=&gt;</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #008080; font-style: italic;">// process the received data</span>
+      DataReceived<span style="color: #008000;">(</span>response<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+      <span style="color: #008080; font-style: italic;">// set the post-fetch state</span>
+      PageIndex <span style="color: #008000;">=</span> newPageIndex<span style="color: #008000;">;</span>
+      OnPageChanged<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      CanChangePage <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>With the simple implementation of <code>IPagedCollectionView</code> given above I can now page data from a range of web services by simply implementing <code>IPagedDataSource</code>. For example, to page data from NetFlix you can use the following implementation:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// A paged NetFlix movies search datasource.</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> NetFlixDataSource <span style="color: #008000;">:</span> IPagedDataSource<span style="color: #008000;">&lt;</span>SyndicationItem<span style="color: #008000;">&gt;</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">string</span> _searchString<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">int</span> _pageSize <span style="color: #008000;">=</span> <span style="color: #FF0000;">10</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> NetFlixDataSource<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span> searchString<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    _searchString <span style="color: #008000;">=</span> searchString<span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">void</span> FetchData<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">int</span> pageNumber, Action<span style="color: #008000;">&lt;</span>PagedDataResponse<span style="color: #008000;">&lt;</span>SyndicationItem<span style="color: #008000;">&gt;&gt;</span> responseCallback<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    WebClient client <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> WebClient<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// create a url for fetching movies with a name that contains the search string</span>
+    <span style="color: #6666cc; font-weight: bold;">string</span> url <span style="color: #008000;">=</span> <span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Format</span><span style="color: #008000;">(</span><span style="color: #666666;">"http://odata.netflix.com/Catalog/Titles?"</span>
+      <span style="color: #008000;">+</span> <span style="color: #666666;">"$top={0}&amp;$orderby=Name&amp;$select=Name&amp;$inlinecount=allpages&amp;$skip={1}&amp;$filter=indexof(Name,'{2}') ne -1"</span>,
+      _pageSize, pageNumber <span style="color: #008000;">*</span> _pageSize, _searchString<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    client<span style="color: #008000;">.</span><span style="color: #0000FF;">DownloadStringCompleted</span> <span style="color: #008000;">+=</span> <span style="color: #008000;">(</span>s, e<span style="color: #008000;">)</span> <span style="color: #008000;">=&gt;</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #008080; font-style: italic;">// parse the response using SyndaicationFeed</span>
+      XmlReader reader <span style="color: #008000;">=</span> XmlReader<span style="color: #008000;">.</span><span style="color: #0000FF;">Create</span><span style="color: #008000;">(</span><span style="color: #008000;">new</span> StringReader<span style="color: #008000;">(</span>e<span style="color: #008000;">.</span><span style="color: #0000FF;">Result</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      SyndicationFeed feed <span style="color: #008000;">=</span> SyndicationFeed<span style="color: #008000;">.</span><span style="color: #0000FF;">Load</span><span style="color: #008000;">(</span>reader<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+      <span style="color: #008080; font-style: italic;">// locate the item count </span>
+      <span style="color: #0600FF; font-weight: bold;">var</span> itemCount <span style="color: #008000;">=</span> feed<span style="color: #008000;">.</span><span style="color: #0000FF;">ElementExtensions</span><span style="color: #008000;">[</span><span style="color: #FF0000;">0</span><span style="color: #008000;">]</span><span style="color: #008000;">.</span><span style="color: #0000FF;">GetObject</span><span style="color: #008000;">&lt;</span>XElement<span style="color: #008000;">&gt;</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Value</span><span style="color: #008000;">;</span>
+&nbsp;
+      <span style="color: #008080; font-style: italic;">// invoke the response callback</span>
+      responseCallback<span style="color: #008000;">(</span><span style="color: #008000;">new</span> PagedDataResponse<span style="color: #008000;">&lt;</span>SyndicationItem<span style="color: #008000;">&gt;</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+      <span style="color: #008000;">{</span>
+        Items <span style="color: #008000;">=</span> feed<span style="color: #008000;">.</span><span style="color: #0000FF;">Items</span><span style="color: #008000;">.</span><span style="color: #0000FF;">ToList</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span>,
+        TotalItemCount <span style="color: #008000;">=</span> <span style="color: #6666cc; font-weight: bold;">int</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Parse</span><span style="color: #008000;">(</span>itemCount<span style="color: #008000;">)</span>
+      <span style="color: #008000;">}</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span><span style="color: #008000;">;</span>
+    client<span style="color: #008000;">.</span><span style="color: #0000FF;">DownloadStringAsync</span><span style="color: #008000;">(</span><span style="color: #008000;">new</span> Uri<span style="color: #008000;">(</span>url<span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>As you can see, this simple implementation of our paging data source constructs the required URL based on the search string and request page number. It also uses the ‘syndication’ APIs which are able to parse the response from the NetFlix OData APIs.</p><p>To test out this implementation of the paged search interface I have created a very simple movie search application. The view model for this application has a <code>SearchString</code> property, exposes the results as <code>SearchResults</code> property and has a single command which initiates a new search. The important parts of this class are shown below:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Gets the paged search results</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> ServerSidePagedCollectionView<span style="color: #008000;">&lt;</span>SyndicationItem<span style="color: #008000;">&gt;</span> SearchResults
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">get</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">return</span> _searchResults<span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">set</span>
+  <span style="color: #008000;">{</span>
+    SetField<span style="color: #008000;">(</span><span style="color: #0600FF; font-weight: bold;">ref</span> _searchResults, <span style="color: #0600FF; font-weight: bold;">value</span>, <span style="color: #666666;">"SearchResults"</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Gets a command which executes the search</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> ICommand ExecuteSearchCommand
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">get</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #008000;">new</span> DelegateCommand<span style="color: #008000;">(</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span> <span style="color: #008000;">=&gt;</span>
+    <span style="color: #008000;">{</span>
+      SearchResults <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> ServerSidePagedCollectionView<span style="color: #008000;">&lt;</span>SyndicationItem<span style="color: #008000;">&gt;</span><span style="color: #008000;">(</span>
+        <span style="color: #008000;">new</span> NetFlixDataSource<span style="color: #008000;">(</span>SearchText<span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>When <code>ExecuteSearchCommand</code> is invoked, we create a new <code>ServerSidePagedCollectionView</code>, providing it with the NetFlix data source.  From here on, the <code>ServerSidePagedCollectionView</code> is responsible for the paging of data.</p><p>The view is as follows:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Grid</span> <span style="color: #000066;">x:Name</span>=<span style="color: #ff0000;">"LayoutRoot"</span> <span style="color: #000066;">Background</span>=<span style="color: #ff0000;">"LightGray"</span></span>
+<span style="color: #009900;">      <span style="color: #000066;">Width</span>=<span style="color: #ff0000;">"400"</span> <span style="color: #000066;">Height</span>=<span style="color: #ff0000;">"360"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Grid.RowDefinitions<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;RowDefinition</span> <span style="color: #000066;">Height</span>=<span style="color: #ff0000;">"Auto"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;RowDefinition</span> <span style="color: #000066;">Height</span>=<span style="color: #ff0000;">"Auto"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;RowDefinition</span> <span style="color: #000066;">Height</span>=<span style="color: #ff0000;">"Auto"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Grid.RowDefinitions<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;StackPanel</span> <span style="color: #000066;">Orientation</span>=<span style="color: #ff0000;">"Horizontal"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">Margin</span>=<span style="color: #ff0000;">"4"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBox</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"{Binding SearchText, Mode=TwoWay}"</span></span>
+<span style="color: #009900;">                <span style="color: #000066;">Width</span>=<span style="color: #ff0000;">"150"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Button</span> <span style="color: #000066;">Command</span>=<span style="color: #ff0000;">"{Binding ExecuteSearchCommand}"</span></span>
+<span style="color: #009900;">            <span style="color: #000066;">Content</span>=<span style="color: #ff0000;">" Search Movies ..."</span></span>
+<span style="color: #009900;">            <span style="color: #000066;">Margin</span>=<span style="color: #ff0000;">"5,0,0,0"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/StackPanel<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ItemsControl</span> <span style="color: #000066;">ItemsSource</span>=<span style="color: #ff0000;">"{Binding SearchResults}"</span></span>
+<span style="color: #009900;">                <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"1"</span></span>
+<span style="color: #009900;">                <span style="color: #000066;">Height</span>=<span style="color: #ff0000;">"300"</span></span>
+<span style="color: #009900;">                <span style="color: #000066;">ItemTemplate</span>=<span style="color: #ff0000;">"{StaticResource MovieTemplate}"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ItemsControl.ItemsPanel<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;ItemsPanelTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;StackPanel</span> <span style="color: #000066;">Orientation</span>=<span style="color: #ff0000;">"Vertical"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/ItemsPanelTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/ItemsControl.ItemsPanel<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/ItemsControl<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Rectangle</span> <span style="color: #000066;">Fill</span>=<span style="color: #ff0000;">"White"</span> <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"1"</span></span>
+<span style="color: #009900;">            <span style="color: #000066;">Opacity</span>=<span style="color: #ff0000;">"0.5"</span></span>
+<span style="color: #009900;">            <span style="color: #000066;">Visibility</span>=<span style="color: #ff0000;">"{Binding Path=SearchResults.CanChangePage, Converter={StaticResource BoolToVisibilityConverter}}"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+&nbsp;
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;sdk:DataPager</span>  <span style="color: #000066;">PageSize</span>=<span style="color: #ff0000;">"10"</span> </span>
+<span style="color: #009900;">                  <span style="color: #000066;">Source</span>=<span style="color: #ff0000;">"{Binding SearchResults}"</span></span>
+<span style="color: #009900;">                  <span style="color: #000066;">Grid.Row</span>=<span style="color: #ff0000;">"2"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+&nbsp;
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Grid<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><p>The DataPager simply binds to the <code>SearchResults</code> as does the ItemsControl. I have also added a <code>Rectangle</code> element which grays-out the current search results when a new page is being fetched.</p><p>You can see the application in action below:</p><div style="text-align: center;"><object width="500" height="400" data="data:application/x-silverlight," type="application/x-silverlight-2"><param name="source" value="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2011/10/PagedCollectionViewExample.xap" /><a href="http://go.microsoft.com/fwlink/?LinkID=124807" style="text-decoration: none;"> <img src="http://go.microsoft.com/fwlink/?LinkId=108181" alt="Get Microsoft Silverlight" style="border-style: none;" /></a></object></div><p>So in summary, by implementing <code>IPagedCollectionView</code> with a pluggable datasource, <code>IPagedDataSource</code>, it is possible to very quickly and easily create an application that pages data from the server.</p><p>You can download the full sourcecode here: <a href="{{ site.url }}/blog/colin/wp-content/uploads/2011/10/PagedCollectionViewExample.zip">PagedCollectionViewExample.zip</a></p><p>Regards, Colin E.</p></div>

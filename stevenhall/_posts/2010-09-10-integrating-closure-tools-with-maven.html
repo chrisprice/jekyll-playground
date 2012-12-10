@@ -1,0 +1,155 @@
+---
+author: Steven Hall
+tags: 
+permalink: /2010/09/integrating-closure-tools-with-maven/index.html
+layout: blog
+---
+<div class="entry"><p>Apache Maven is a popular build management tool that we use at Scott Logic to handle our internal projects. When I began using the Closure Tools, integrating the Compiler into the Maven build process became an important task.</p><p>Having the compilation of code in the build process assures that the code will be built correctly both at development and release time, as well as ensuring repeatability in the build. We also chose to integrate Closure Linter into the build process to ensure adherence to style. This blog article will aim to show you one technique for including Closure compilation and style checking into your Maven project.</p><h2>Closure Compiler</h2><p>Let’s imagine we want to include the following builder configuration into Maven:</p><div class="wp_syntax"><div class="code"><pre class="winbatch" style="font-family: monospace;">python closurebuilder.py <span style="color: #66cc66;">--</span>root=js <span style="color: #66cc66;">--</span>namespace=foo.bar <span style="color: #66cc66;">--</span>output_mode=compiled <span style="color: #66cc66;">/</span>
+<span style="color: #66cc66;">--</span>compiler_flags=<span style="color: #ff0000;">"--compilation_level=ADVANCED_OPTIMIZATIONS"</span> <span style="color: #66cc66;">/</span>
+<span style="color: #66cc66;">--</span>compiler_jar=compiler.jar <span style="color: #66cc66;">--</span>output_file=compiled.js</pre></div></div><h2>Maven Integration</h2><p>Integrating an executable with Maven is simple using the <a href="http://mojo.codehaus.org/exec-maven-plugin/" target="_blank">Maven Exec Plugin</a>. However, the tricky part comes with requiring all the source files in one location to compile.</p><p>It’s to be assumed that you’ve been using the war plugin to package your web project. The war:war goal will explode all the required files in a target directory, and then package them into a WAR file. The uncompressed files remain in the target directory after the WAR has been created, and we will use these exploded files to compile the code.</p><p>The goal is to have all the JavaScript source files in the Maven directory before creating the final WAR file, so we can compile them. We do this by adding a war:war goal to the prepare-package phase. This goal explodes all the required source into the target directory, and allows us to compile, before the actual packaging is done in the package phase.</p><p>In its simplest form, the phases are as follows:</p><ul>
+<li>[<span style="color: #800000;">prepare-package</span>(war:war)] Explode the WAR file into the target directory, then create an empty WAR file from the files just exploded.</li>
+<li>[<span style="color: #800000;">prepare-package</span>(exec:exec)] Compile the exploded files that were left behind by the war goal of the prepare-package phase.</li>
+<li>[<span style="color: #800000;">package</span>(war:war)] Create a WAR with the compiled source in it, and no other JavaScript sources.</li>
+</ul><p>This can get a little complicated, so I’ve put together a small table showing the phases:</p><table class="blogTable">
+<thead>
+<tr>
+<th>Phase</th>
+<th>Goal</th>
+<th>Configuration</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th>prepare-package</th>
+<td>war:war</td>
+<td></td>
+<td>Creating a WAR archive will explode all files into the target directory. This is how we get all the files we want to compile.</td>
+</tr>
+<tr>
+<th></th>
+<td></td>
+<td>only include JavaScript source files</td>
+<td>We only want JavaScript source files – don’t include any other files</td>
+</tr>
+<tr>
+<th></th>
+<td></td>
+<td>exclude everything from archive</td>
+<td>Maven will automatically create an archive from the exploded directory. Although this is the goal, we aren’t interested in the war file (we only want the contents of the exploded directory). Don’t include anything in the war to save processing.</td>
+</tr>
+<tr>
+<th></th>
+<td>exec:exec</td>
+<td></td>
+<td>The exec goal is what will execute the compiler python script.</td>
+</tr>
+<tr>
+<th></th>
+<td></td>
+<td>output to target folder</td>
+<td>Ensure that the compiled file is output to the target folder, so when we package, we can include it.</td>
+</tr>
+<tr>
+<th>package</th>
+<td>war:war</td>
+<td></td>
+<td>Now that we have the compiled file, we can create the WAR archive.</td>
+</tr>
+<tr>
+<th></th>
+<td></td>
+<td>exclude all JavaScript sources except the compiled file</td>
+<td>Only include the compiled file (no other JS sources) as they are contained within the compiled file.</td>
+</tr>
+</tbody>
+</table><p>Here’s the XML that reflects this:</p><div class="wp_syntax"><div class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;plugin<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;groupId<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>org.apache.maven.plugins<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/groupId<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;artifactId<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>maven-war-plugin<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/artifactId<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;version<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>2.1-beta-1<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/version<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;executions<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;execution<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;id<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>write-deps<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/id<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;phase<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>prepare-package<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/phase<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;goals<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;goal<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>war<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/goal<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/goals<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;configuration<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #808080; font-style: italic;">&lt;!-- Make sure to include only the JavaScript source files --&gt;</span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;warSourceIncludes<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>**/*.js<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/warSourceIncludes<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;dependencyWarIncludes<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>**/*.js<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/dependencyWarIncludes<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #808080; font-style: italic;">&lt;!-- Exclude everything from the final WAR file, as we won't use it --&gt;</span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;packagingExcludes<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>**/*<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/packagingExcludes<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/configuration<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/execution<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;execution<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;id<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>default-war<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/id<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;phase<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>package<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/phase<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;goals<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;goal<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>war<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/goal<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/goals<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;configuration<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #808080; font-style: italic;">&lt;!-- This is the final WAR package.</span>
+<span style="color: #808080; font-style: italic;">          Exclude all the JavaScript sources except the compiled file --&gt;</span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;packagingExcludes<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>js/*/**/*.js<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/packagingExcludes<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/configuration<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/execution<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/executions<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/plugin<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;plugin<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;groupId<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>org.codehaus.mojo<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/groupId<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;artifactId<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>exec-maven-plugin<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/artifactId<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;version<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>1.1.1<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/version<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;executions<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;execution<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;id<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>resolve-and-compile-js<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/id<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;phase<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>prepare-package<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/phase<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;goals<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;goal<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>exec<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/goal<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/goals<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;configuration<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #808080; font-style: italic;">&lt;!-- We're running a python script, so the executable is python. --&gt;</span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;executable<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>python<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/executable<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;workingDirectory<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>${project.build.directory}/${project.build.finalName}<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/workingDirectory<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #808080; font-style: italic;">&lt;!-- Here we define the arguments to the Python execution.</span>
+<span style="color: #808080; font-style: italic;">          This includes the location of closure-builder,</span>
+<span style="color: #808080; font-style: italic;">          and any other arguments to the Python script --&gt;</span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;arguments<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+          <span style="color: #808080; font-style: italic;">&lt;!-- Remember that you're in the BUILD directory.</span>
+<span style="color: #808080; font-style: italic;">            Make sure this points to the correct place. --&gt;</span>
+          <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>../closure-builder.py<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+          <span style="color: #808080; font-style: italic;">&lt;!-- Ensure this points to the root of all your JS files,</span>
+<span style="color: #808080; font-style: italic;">            including any dependencies that may have been pulled in.</span>
+<span style="color: #808080; font-style: italic;">            Everything in this directory will be compiled. --&gt;</span>
+          <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>--root=js<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+          <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>--namespace="foo.bar"<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+          <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>--output_mode=compiled<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+          <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>--compiler_flags="--compilation_level=ADVANCED_OPTIMIZATIONS"<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+          <span style="color: #808080; font-style: italic;">&lt;!-- As with closure-builder, ensure that this points to</span>
+<span style="color: #808080; font-style: italic;">            the Compiler .jar file from the build directory. --&gt;</span>
+          <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>--compiler_jar=../compiler.jar<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+          <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>--output_file=compiled.js<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/arguments<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/configuration<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/execution<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/executions<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/plugin<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></div></div><h3>war:exploded</h3><p>Note that we could have used war:exploded in the prepare-package phase as the packaged war file isn’t required (war:exploded does the job of war:war but without the last step, where the exploded files are added to a war archive).</p><p>However, war:exploded doesn’t have the same optimization of ignoring dependency changes as war:war, so while it would work the build would be much slower.</p><h2>Dependencies</h2><p>It’s better practice in Maven to keep individual modules separate, so that you can build against specific versions and therefore improve the repeatability and reliability of your builds. For this reason, you probably won’t want to have your application and the Closure Library in the same project, which can be achieved by using a&nbsp;<a href="http://maven.apache.org/plugins/maven-war-plugin/examples/war-overlay.html" target="_blank">War overlay</a>.</p><p>As long as both projects are war packaged, the war goal will explode all files into the same directory. For example, your structure may be similar to the example below:</p><p style="text-align: center;"><a href="{{ site.url }}/wp-content/uploads/2010/09/FileStruct1.png"><img class="aligncenter" src="http://www.scottlogic.co.uk/wp-content/uploads/2010/09/FileStruct1.png" alt="" width="225" height="306" /></a></p><p>As you can see, the target directory in myproject has combined the js folders from both projects, so giving the Compiler access to the js folder will include all JavaScript source.</p><h2>Closure Linter</h2><p>As another step, you may wish to include a Closure Linter pass in your build process. This is done a very similar way, albeit with fewer complications. Using the same Exec Plugin (remember your dependency!) we can add another execution to the prepare-package phase as such:</p><div class="wp_syntax"><div class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;execution<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;id<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>check-style<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/id<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;phase<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>prepare-package<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/phase<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;goals<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;goal<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>exec<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/goal<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/goals<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;configuration<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #808080; font-style: italic;">&lt;!-- We aren't using Python anymore; if you've followed the instructions from Google,</span>
+<span style="color: #808080; font-style: italic;">      gjslint should be runnable from the command line. --&gt;</span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;executable<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>gjslint<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/executable<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;workingDirectory<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>${project.build.directory}/${project.build.finalName}<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/workingDirectory<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;arguments<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #808080; font-style: italic;">&lt;!-- Set your arguments here --&gt;</span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>--strict<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>-r<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #808080; font-style: italic;">&lt;!-- Each source file in this directory will be checked. --&gt;</span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>js/scottlogic<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/argument<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/arguments<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/configuration<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/execution<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></div></div><p>The build will then output the results of the style check to the standard output. Of course, if you wanted to use fixjsstyle too, this would only require changing the executable tag.</p><h2>Conclusion</h2><p>Hopefully this article has explained the method of integrating the Closure Compiler into your build process. Whilst in theory it doesn’t sound like a complicated task, the management of files between different projects can be quite complex.</p><p>The main goal of this article was to introduce the method of exploding the required files into one directory, manipulating the files, and then creating the final WAR.</p><p>Hopefully I’ve provided a framework for working with the Closure Tools and Maven and that, in theory, different executables and Maven goals can be applied to the source files (jsdoc-toolkit and JSLint as examples) before they are packaged into the final WAR.</p></div>

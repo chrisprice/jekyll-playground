@@ -1,0 +1,76 @@
+---
+author: Colin Eberhardt
+tags: 
+permalink: /blog/colin/2012/01/wp7-phonegap-backbutton-support-re-visited/index.html
+layout: colineberhardt-blog
+---
+<div class="entry"><div class="topsy_widget_data topsy_theme_light-green" style="float: right; margin-left: 0.75em; background: url(data:,%7B%20%22url%22%3A%20%22http%253A%252F%252Fwww.scottlogic.co.uk%252Fblog%252Fcolin%252F2012%252F01%252Fwp7-phonegap-backbutton-support-re-visited%252F%22%2C%20%22style%22%3A%20%22big%22%2C%20%22title%22%3A%20%22WP7%20PhoneGap%20Backbutton%20Support%20Re-visited%20%23%22%20%7D);"></div><p>About a month ago I published an article which demonstrated how to <a href="{{ site.url }}/blog/colin/2011/12/a-simple-multi-page-windows-phone-7-phonegap-example/" title="A Simple Multi-Page Windows Phone 7 PhoneGap Example">create a WP7 application using static HTML pages and PhoneGap</a>. Whilst PhoneGap makes the packaging of HTML / JavaScript / CSS and images into a breeze, one thing it doesn’t do is provide correct back-button support. Correct back-button support is a mandatory requirement for marketplace certification. Hitting the back button should navigate back through the various screens of an application. Hitting the back-button on the first screen should terminate the application. </p><p>The solution I published previously handles the WP7 back keypress in order to keep track of the back-stack depth. When the back-stack depth is just one, a back-button press exits the application. This works fine if backwards navigation is always controlled via the hardware back-button, however if your application has HTML anchor elements that navigate back to a previous page, or you use code such as <code>javascript:history.go(-1)</code>, this back-stack handling code will not detect that a backwards navigation has occurred.</p><p><em>As an aside, WP7 applications really should use the hardware back-button for navigation. If you are writing a cross-platform PhoneGap application consider adapting your UI for each platform. This means removing the back-button you woudl have in your iOS version when ‘skinning’ for WP7.</em></p><p>In order to solve this issue I have updated the code to inspect the URL that the browser control is navigating to in order to detect backwards navigation. The class now maintains a list of URLs, which represent the navigation stack. This allows it to detect a backwards navigation.</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Handles the back-button for a PhoneGap application. When the back-button</span>
+<span style="color: #008080; font-style: italic;">/// is pressed, the browser history is navigated. If no history is present,</span>
+<span style="color: #008080; font-style: italic;">/// the application will exit.</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> BackButtonHandler
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> WebBrowser _browser<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> List<span style="color: #008000;">&lt;</span><span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">&gt;</span> _backStack <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> List<span style="color: #008000;">&lt;</span><span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">&gt;</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> BackButtonHandler<span style="color: #008000;">(</span>PhoneApplicationPage page, PGView phoneGapView<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #008080; font-style: italic;">// subscribe to the hardware back-button</span>
+    page<span style="color: #008000;">.</span><span style="color: #0000FF;">BackKeyPress</span> <span style="color: #008000;">+=</span> Page_BackKeyPress<span style="color: #008000;">;</span>
+&nbsp;
+    _browser <span style="color: #008000;">=</span> phoneGapView<span style="color: #008000;">.</span><span style="color: #0000FF;">Browser</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// handle navigation events</span>
+    _browser<span style="color: #008000;">.</span><span style="color: #0000FF;">Navigated</span> <span style="color: #008000;">+=</span> Browser_Navigated<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Handle navigation in order to update our back-stack</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> Browser_Navigated<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, NavigationEventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #6666cc; font-weight: bold;">string</span> url <span style="color: #008000;">=</span> _browser<span style="color: #008000;">.</span><span style="color: #0000FF;">Source</span><span style="color: #008000;">.</span><span style="color: #0000FF;">OriginalString</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// ensure all slashes are the same</span>
+    <span style="color: #008080; font-style: italic;">// app\www/index.html</span>
+    <span style="color: #008080; font-style: italic;">// see: https://issues.apache.org/jira/browse/CB-184</span>
+    url <span style="color: #008000;">=</span> url<span style="color: #008000;">.</span><span style="color: #0000FF;">Replace</span><span style="color: #008000;">(</span><span style="color: #666666;">"<span style="color: #008080; font-weight: bold;">\\</span>"</span>, <span style="color: #666666;">"/"</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>_backStack<span style="color: #008000;">.</span><span style="color: #0000FF;">Count</span> <span style="color: #008000;">&lt;</span> <span style="color: #FF0000;">2</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      _backStack<span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span>url<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+    <span style="color: #0600FF; font-weight: bold;">else</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #008080; font-style: italic;">// check whether the URL represents a backwards navigation</span>
+      <span style="color: #6666cc; font-weight: bold;">string</span> previousPage <span style="color: #008000;">=</span> _backStack<span style="color: #008000;">[</span>_backStack<span style="color: #008000;">.</span><span style="color: #0000FF;">Count</span> <span style="color: #008000;">-</span> <span style="color: #FF0000;">2</span><span style="color: #008000;">]</span><span style="color: #008000;">;</span>
+      <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>previousPage <span style="color: #008000;">==</span> url<span style="color: #008000;">)</span>
+      <span style="color: #008000;">{</span>
+        _backStack<span style="color: #008000;">.</span><span style="color: #0000FF;">RemoveAt</span><span style="color: #008000;">(</span>_backStack<span style="color: #008000;">.</span><span style="color: #0000FF;">Count</span> <span style="color: #008000;">-</span> <span style="color: #FF0000;">1</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      <span style="color: #008000;">}</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Handle the hardware back-button</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> Page_BackKeyPress<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, CancelEventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #008080; font-style: italic;">// if we have items in the back-stack, route this event</span>
+    <span style="color: #008080; font-style: italic;">// to the browser</span>
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>_backStack<span style="color: #008000;">.</span><span style="color: #0000FF;">Count</span> <span style="color: #008000;">&gt;</span> <span style="color: #FF0000;">1</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      _browser<span style="color: #008000;">.</span><span style="color: #0000FF;">InvokeScript</span><span style="color: #008000;">(</span><span style="color: #666666;">"eval"</span>, <span style="color: #666666;">"history.go(-1)"</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      e<span style="color: #008000;">.</span><span style="color: #0000FF;">Cancel</span> <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>Note: There use of <code>url.Replace("\\", "/")</code>, this is due to a minor issue with the PhoneGap WP7 native code, which I have raised in the Callback JIRA (<a href="https://issues.apache.org/jira/browse/CB-184">CB-184</a>).</p><p>To use this code simply create an instance of the class, passing the PGView (the PhoneGap user control) into teh constructor:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">public</span> MainPage<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  InitializeComponent<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008000;">new</span> BackButtonHandler<span style="color: #008000;">(</span><span style="color: #0600FF; font-weight: bold;">this</span>, PGView<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>Because back-button handling is a mandatory requirement for WP7 applications, hopefully Nitobi will incorporate this code (or similar) into the <a href="https://build.phonegap.com/apps">PhoneGap Build service</a> (which I tried earlier this week – it is pretty amazing!)</p><p>You can download a working example here: <a href="{{ site.url }}/blog/colin/wp-content/uploads/2012/01/HTML5SandwichFlow1.zip">HTML5SandwichFlow.zip</a></p><p>(The first three recipe pages have ‘back’ anchor elements, two use the URL, one uses JavaScript)</p><p>Regards,<br />
+Colin E.</p></div>

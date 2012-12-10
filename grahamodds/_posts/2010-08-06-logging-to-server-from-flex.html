@@ -1,0 +1,160 @@
+---
+author: Graham Odds
+tags: Flex
+permalink: /blog/graham/2010/08/logging-to-server-from-flex/index.html
+layout: blog
+---
+<div class="entry"><div class="topsy_widget_data topsy_theme_blue" style="float: right; margin-left: 0.75em; background: url(data:,%7B%20%22url%22%3A%20%22http%253A%252F%252Fwww.scottlogic.co.uk%252Fblog%252Fgraham%252F2010%252F08%252Flogging-to-server-from-flex%252F%22%2C%20%22shorturl%22%3A%20%22http%3A%2F%2Fbit.ly%2Fd6UiOe%22%2C%20%22style%22%3A%20%22big%22%2C%20%22title%22%3A%20%22Logging%20to%20Server%20from%20Flex%22%20%7D);"></div><p>An issue that can crop up with Flex applications is the lack of any log information to match up against users’ bug reports.  It is possible to <a href="http://livedocs.adobe.com/flex/3/html/help.html?content=logging_07.html" target="_blank">configure</a> the debug version of Flash Player to record <a href="http://livedocs.adobe.com/flex/3/langref/package.html#trace%28%29" target="_blank">trace()</a> output, but most users do not have this setup.  Additionally, it is much more desirable to maintain this kind of information server-side, where the development team have control, rather than relying on users’ whilst also clogging up their machines.  A general approach to this problem is relatively obvious – send the information back to the server – but there are all sorts of ways this could be implemented.  Of course, sending lots of logging information to the server creates an overhead in the application, so this should very much be considered on a case by case basis.</p><p>A solution that we use takes advantage of Flex’s native <a href="http://livedocs.adobe.com/flex/3/html/help.html?content=logging_09.html" target="_blank">logging API</a>, allowing it to be transparently added or removed from an application while providing us with the benefits of a decent logging framework, for example logging levels.  Flex provides the <a href="http://livedocs.adobe.com/flex/3/langref/mx/logging/ILogger.html" target="_blank">ILogger</a> class, instances of which are obtained using <a href="http://livedocs.adobe.com/flex/3/langref/mx/logging/Log.html" target="_blank">Log</a>‘s <a href="http://livedocs.adobe.com/flex/3/langref/mx/logging/Log.html#getLogger%28%29" target="_blank">getLogger()</a> method, to log messages.  In turn, these messages are sent to one or more <a href="http://livedocs.adobe.com/flex/3/langref/mx/logging/ILoggingTarget.html" target="_blank">ILoggingTargets</a>, the most common of which, <a href="http://livedocs.adobe.com/flex/3/langref/mx/logging/targets/TraceTarget.html" target="_blank">TraceTarget</a> outputs the logging information using the <a href="http://livedocs.adobe.com/flex/3/langref/package.html#trace%28%29" target="_blank">trace()</a> method.  The <a href="http://livedocs.adobe.com/flex/3/html/help.html?content=logging_09.html">logging API documentation</a> provides details and examples for how to get started with this basic logging setup.</p><p>On the Flex side, our solution consists of little more than a custom <a href="http://livedocs.adobe.com/flex/3/langref/mx/logging/ILoggingTarget.html" target="_blank">ILoggingTarget</a> implementation, <a href="{{ site.url }}/blog/graham/wp-content/uploads/2010/08/RemoteLogging.zip" target="_blank">RemoteTarget</a>, that attempts to send the logging information to a specified URL and the appropriate code to initialise the target.  Note that <a href="{{ site.url }}/blog/graham/wp-content/uploads/2010/08/RemoteLogging.zip" target="_blank">RemoteTarget</a> uses <a href="http://livedocs.adobe.com/flex/3/langref/flash/net/URLLoader.html" target="_blank">URLLoaders</a> rather than <a href="http://livedocs.adobe.com/flex/3/langref/mx/rpc/http/HTTPService.html" target="_blank">HTTPServices</a> because <a href="http://livedocs.adobe.com/flex/3/langref/mx/rpc/http/HTTPService.html" target="_blank">HTTPService</a> itself uses the logging API, thereby causing an infinite loop.  Another feature worth highlighting is that our implementation stops logging if it has encounters any errors when sending the information to the server, so that, for example, an application does not repeatedly hit a server that is unavailable.  All source code and examples associated with this article can be found <a href="{{ site.url }}/blog/graham/wp-content/uploads/2010/08/RemoteLogging.zip" target="_blank">here</a>.</p><div class="wp_syntax"><table><tr><td class="code"><pre class="actionscript3" style="font-family: monospace;"><span style="color: #9900cc; font-weight: bold;">package</span> com<span style="color: #000066; font-weight: bold;">.</span>scottlogic<span style="color: #000066; font-weight: bold;">.</span>logging
+<span style="color: #000000;">{</span>
+    <span style="color: #0033ff; font-weight: bold;">import</span> <span style="color: #004993;">flash.events</span><span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">IOErrorEvent</span><span style="color: #000066; font-weight: bold;">;</span>
+    <span style="color: #0033ff; font-weight: bold;">import</span> <span style="color: #004993;">flash.events</span><span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">SecurityErrorEvent</span><span style="color: #000066; font-weight: bold;">;</span>
+    <span style="color: #0033ff; font-weight: bold;">import</span> <span style="color: #004993;">flash.net</span><span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">URLLoader</span><span style="color: #000066; font-weight: bold;">;</span>
+    <span style="color: #0033ff; font-weight: bold;">import</span> <span style="color: #004993;">flash.net</span><span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">URLRequest</span><span style="color: #000066; font-weight: bold;">;</span>
+    <span style="color: #0033ff; font-weight: bold;">import</span> <span style="color: #004993;">flash.net</span><span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">URLVariables</span><span style="color: #000066; font-weight: bold;">;</span>
+&nbsp;
+    <span style="color: #0033ff; font-weight: bold;">import</span> mx<span style="color: #000066; font-weight: bold;">.</span>logging<span style="color: #000066; font-weight: bold;">.</span>AbstractTarget<span style="color: #000066; font-weight: bold;">;</span>
+    <span style="color: #0033ff; font-weight: bold;">import</span> mx<span style="color: #000066; font-weight: bold;">.</span>logging<span style="color: #000066; font-weight: bold;">.</span>ILogger<span style="color: #000066; font-weight: bold;">;</span>
+    <span style="color: #0033ff; font-weight: bold;">import</span> mx<span style="color: #000066; font-weight: bold;">.</span>logging<span style="color: #000066; font-weight: bold;">.</span>LogEvent<span style="color: #000066; font-weight: bold;">;</span>
+    <span style="color: #0033ff; font-weight: bold;">import</span> mx<span style="color: #000066; font-weight: bold;">.</span>utils<span style="color: #000066; font-weight: bold;">.</span>StringUtil<span style="color: #000066; font-weight: bold;">;</span>
+&nbsp;
+    <span style="color: #3f5fbf;">/**
+     * ILoggingTarget implementation that sends logging details
+     * to a remote service.  The following details are sent as
+     * request parameters:
+     *  - level: the log level as an integer (see LogEventLevel)
+     *  - category: the log category
+     *  - timestamp: as milliseconds from 1st Jan 1970
+     *  - message: the log message
+     */</span>
+    <span style="color: #0033ff; font-weight: bold;">public</span> <span style="color: #9900cc; font-weight: bold;">class</span> RemoteTarget <span style="color: #0033ff; font-weight: bold;">extends</span> AbstractTarget
+    <span style="color: #000000;">{</span>
+        <span style="color: #3f5fbf;">/**
+         * Flag to indicate whether remote logging is enabled
+         * or not.  The RemoteTarget will automatically disable
+         * itself if it encounters any errors.
+         */</span>
+        <span style="color: #0033ff; font-weight: bold;">private</span> <span style="color: #6699cc; font-weight: bold;">var</span> <span style="color: #004993;">enabled</span><span style="color: #000066; font-weight: bold;">:</span><span style="color: #004993;">Boolean</span> = <span style="color: #0033ff; font-weight: bold;">true</span><span style="color: #000066; font-weight: bold;">;</span>
+&nbsp;
+        <span style="color: #3f5fbf;">/**
+         * Constructor
+         */</span>
+        <span style="color: #0033ff; font-weight: bold;">public</span> <span style="color: #339966; font-weight: bold;">function</span> RemoteTarget<span style="color: #000000;">(</span><span style="color: #000000;">)</span>
+        <span style="color: #000000;">{</span>
+            <span style="color: #0033ff; font-weight: bold;">super</span><span style="color: #000000;">(</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">;</span>
+        <span style="color: #000000;">}</span>
+&nbsp;
+        <span style="color: #0033ff; font-weight: bold;">private</span> <span style="color: #6699cc; font-weight: bold;">var</span> _url<span style="color: #000066; font-weight: bold;">:</span><span style="color: #004993;">String</span><span style="color: #000066; font-weight: bold;">;</span>
+        <span style="color: #3f5fbf;">/**
+         * The URL of the service to which to log.
+         */</span>
+        <span style="color: #0033ff; font-weight: bold;">public</span> <span style="color: #339966; font-weight: bold;">function</span> <span style="color: #0033ff; font-weight: bold;">get</span> <span style="color: #004993;">url</span><span style="color: #000000;">(</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">:</span><span style="color: #004993;">String</span>
+        <span style="color: #000000;">{</span>
+            <span style="color: #0033ff; font-weight: bold;">return</span> _url<span style="color: #000066; font-weight: bold;">;</span>
+        <span style="color: #000000;">}</span>
+        <span style="color: #3f5fbf;">/**
+         * @private
+         */</span>
+        <span style="color: #0033ff; font-weight: bold;">public</span> <span style="color: #339966; font-weight: bold;">function</span> <span style="color: #0033ff; font-weight: bold;">set</span> <span style="color: #004993;">url</span><span style="color: #000000;">(</span><span style="color: #004993;">value</span><span style="color: #000066; font-weight: bold;">:</span><span style="color: #004993;">String</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">:</span><span style="color: #0033ff; font-weight: bold;">void</span>
+        <span style="color: #000000;">{</span>
+            _url = <span style="color: #004993;">value</span><span style="color: #000066; font-weight: bold;">;</span>
+        <span style="color: #000000;">}</span>
+&nbsp;
+        <span style="color: #3f5fbf;">/**
+         * @private
+         */</span>
+        <span style="color: #0033ff; font-weight: bold;">override</span> <span style="color: #0033ff; font-weight: bold;">public</span> <span style="color: #339966; font-weight: bold;">function</span> logEvent<span style="color: #000000;">(</span>event<span style="color: #000066; font-weight: bold;">:</span>LogEvent<span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">:</span><span style="color: #0033ff; font-weight: bold;">void</span>
+        <span style="color: #000000;">{</span>
+            <span style="color: #009900; font-style: italic;">// if there has been any issue with remote logging</span>
+            <span style="color: #0033ff; font-weight: bold;">if</span> <span style="color: #000000;">(</span><span style="color: #000066; font-weight: bold;">!</span><span style="color: #004993;">enabled</span><span style="color: #000000;">)</span>
+                <span style="color: #0033ff; font-weight: bold;">return</span><span style="color: #000066; font-weight: bold;">;</span>
+            <span style="color: #009900; font-style: italic;">// if no url is set then do nothing</span>
+            <span style="color: #0033ff; font-weight: bold;">if</span> <span style="color: #000000;">(</span><span style="color: #000066; font-weight: bold;">!</span>_url <span style="color: #000066; font-weight: bold;">||</span> StringUtil<span style="color: #000066; font-weight: bold;">.</span>trim<span style="color: #000000;">(</span>_url<span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">length</span> == <span style="color: #000000; font-weight: bold;">0</span><span style="color: #000000;">)</span>
+                <span style="color: #0033ff; font-weight: bold;">return</span><span style="color: #000066; font-weight: bold;">;</span>
+&nbsp;
+            <span style="color: #009900; font-style: italic;">// attempt to log to the server</span>
+            <span style="color: #0033ff; font-weight: bold;">try</span>
+            <span style="color: #000000;">{</span>
+                <span style="color: #6699cc; font-weight: bold;">var</span> variables<span style="color: #000066; font-weight: bold;">:</span><span style="color: #004993;">URLVariables</span> = <span style="color: #0033ff; font-weight: bold;">new</span> <span style="color: #004993;">URLVariables</span><span style="color: #000000;">(</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">;</span>
+                variables<span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">level</span> = event<span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">level</span><span style="color: #000066; font-weight: bold;">;</span>
+                variables<span style="color: #000066; font-weight: bold;">.</span>category = ILogger<span style="color: #000000;">(</span>event<span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">target</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">.</span>category<span style="color: #000066; font-weight: bold;">;</span>
+                variables<span style="color: #000066; font-weight: bold;">.</span>timestamp = <span style="color: #0033ff; font-weight: bold;">new</span> <span style="color: #004993;">Date</span><span style="color: #000000;">(</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">time</span><span style="color: #000066; font-weight: bold;">;</span>
+                variables<span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">message</span> = event<span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">message</span><span style="color: #000066; font-weight: bold;">;</span>
+                <span style="color: #6699cc; font-weight: bold;">var</span> request<span style="color: #000066; font-weight: bold;">:</span><span style="color: #004993;">URLRequest</span> = <span style="color: #0033ff; font-weight: bold;">new</span> <span style="color: #004993;">URLRequest</span><span style="color: #000000;">(</span>_url<span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">;</span>
+                request<span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">method</span> = <span style="color: #990000;">"POST"</span><span style="color: #000066; font-weight: bold;">;</span>
+                request<span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">data</span> = variables<span style="color: #000066; font-weight: bold;">;</span>
+                <span style="color: #6699cc; font-weight: bold;">var</span> <span style="color: #004993;">loader</span><span style="color: #000066; font-weight: bold;">:</span><span style="color: #004993;">URLLoader</span> = createLoader<span style="color: #000000;">(</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">;</span>
+                <span style="color: #004993;">loader</span><span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">load</span><span style="color: #000000;">(</span>request<span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">;</span>
+            <span style="color: #000000;">}</span>
+            <span style="color: #0033ff; font-weight: bold;">catch</span> <span style="color: #000000;">(</span>e<span style="color: #000066; font-weight: bold;">:</span><span style="color: #004993;">Error</span><span style="color: #000000;">)</span>
+            <span style="color: #000000;">{</span>
+                <span style="color: #004993;">enabled</span> = <span style="color: #0033ff; font-weight: bold;">false</span><span style="color: #000066; font-weight: bold;">;</span>
+                <span style="color: #004993;">trace</span><span style="color: #000000;">(</span>e<span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">message</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">;</span>
+                <span style="color: #004993;">trace</span><span style="color: #000000;">(</span>e<span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">getStackTrace</span><span style="color: #000000;">(</span><span style="color: #000000;">)</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">;</span>
+            <span style="color: #000000;">}</span>
+        <span style="color: #000000;">}</span>
+&nbsp;
+        <span style="color: #3f5fbf;">/**
+         * Creates a URLLoader with all the appropriate event listeners.
+         */</span>
+        <span style="color: #0033ff; font-weight: bold;">private</span> <span style="color: #339966; font-weight: bold;">function</span> createLoader<span style="color: #000000;">(</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">:</span><span style="color: #004993;">URLLoader</span>
+        <span style="color: #000000;">{</span>
+            <span style="color: #6699cc; font-weight: bold;">var</span> <span style="color: #004993;">loader</span><span style="color: #000066; font-weight: bold;">:</span><span style="color: #004993;">URLLoader</span> = <span style="color: #0033ff; font-weight: bold;">new</span> <span style="color: #004993;">URLLoader</span><span style="color: #000000;">(</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">;</span>
+            <span style="color: #004993;">loader</span><span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">addEventListener</span><span style="color: #000000;">(</span><span style="color: #004993;">IOErrorEvent</span><span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">IO_ERROR</span><span style="color: #000066; font-weight: bold;">,</span>
+                                    ioErrorHandler<span style="color: #000066; font-weight: bold;">,</span>
+                                    <span style="color: #0033ff; font-weight: bold;">false</span><span style="color: #000066; font-weight: bold;">,</span> <span style="color: #000000; font-weight: bold;">0</span><span style="color: #000066; font-weight: bold;">,</span> <span style="color: #0033ff; font-weight: bold;">true</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">;</span>
+            <span style="color: #004993;">loader</span><span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">addEventListener</span><span style="color: #000000;">(</span><span style="color: #004993;">SecurityErrorEvent</span><span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">SECURITY_ERROR</span><span style="color: #000066; font-weight: bold;">,</span>
+                                    securityErrorHandler<span style="color: #000066; font-weight: bold;">,</span>
+                                    <span style="color: #0033ff; font-weight: bold;">false</span><span style="color: #000066; font-weight: bold;">,</span> <span style="color: #000000; font-weight: bold;">0</span><span style="color: #000066; font-weight: bold;">,</span> <span style="color: #0033ff; font-weight: bold;">true</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">;</span>
+            <span style="color: #0033ff; font-weight: bold;">return</span> <span style="color: #004993;">loader</span><span style="color: #000066; font-weight: bold;">;</span>
+        <span style="color: #000000;">}</span>
+&nbsp;
+        <span style="color: #3f5fbf;">/**
+         * Disables the remote logging and traces debug information
+         * when there is an IO error during logging to the remote server.
+         */</span>
+        <span style="color: #0033ff; font-weight: bold;">private</span> <span style="color: #339966; font-weight: bold;">function</span> ioErrorHandler<span style="color: #000000;">(</span>event<span style="color: #000066; font-weight: bold;">:</span><span style="color: #004993;">IOErrorEvent</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">:</span><span style="color: #0033ff; font-weight: bold;">void</span>
+        <span style="color: #000000;">{</span>
+            <span style="color: #004993;">enabled</span> = <span style="color: #0033ff; font-weight: bold;">false</span><span style="color: #000066; font-weight: bold;">;</span>
+            <span style="color: #004993;">trace</span><span style="color: #000000;">(</span><span style="color: #990000;">"ERROR - IO error in RemoteTarget"</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">;</span>
+            <span style="color: #004993;">trace</span><span style="color: #000000;">(</span>event<span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">text</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">;</span>
+        <span style="color: #000000;">}</span>
+&nbsp;
+        <span style="color: #3f5fbf;">/**
+         * Disables the remote logging and traces debug information
+         * when there is a security error during logging to the remote
+         * server.
+         */</span>
+        <span style="color: #0033ff; font-weight: bold;">private</span> <span style="color: #339966; font-weight: bold;">function</span> securityErrorHandler<span style="color: #000000;">(</span>event<span style="color: #000066; font-weight: bold;">:</span><span style="color: #004993;">SecurityErrorEvent</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">:</span><span style="color: #0033ff; font-weight: bold;">void</span>
+        <span style="color: #000000;">{</span>
+            <span style="color: #004993;">enabled</span> = <span style="color: #0033ff; font-weight: bold;">false</span><span style="color: #000066; font-weight: bold;">;</span>
+            <span style="color: #004993;">trace</span><span style="color: #000000;">(</span><span style="color: #990000;">"ERROR - Security error in RemoteTarget"</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">;</span>
+            <span style="color: #004993;">trace</span><span style="color: #000000;">(</span>event<span style="color: #000066; font-weight: bold;">.</span><span style="color: #004993;">text</span><span style="color: #000000;">)</span><span style="color: #000066; font-weight: bold;">;</span>
+        <span style="color: #000000;">}</span>
+    <span style="color: #000000;">}</span>
+<span style="color: #000000;">}</span></pre></td></tr></table></div><p>Here is a small example showing how <a href="{{ site.url }}/blog/graham/wp-content/uploads/2010/08/RemoteLogging.zip" target="_blank">RemoteTarget</a> can be used:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;mx:Application</span></span>
+<span style="color: #009900;">    <span style="color: #000066;">xmlns:mx</span>=<span style="color: #ff0000;">"http://www.adobe.com/2006/mxml"</span></span>
+<span style="color: #009900;">    <span style="color: #000066;">layout</span>=<span style="color: #ff0000;">"horizontal"</span></span>
+<span style="color: #009900;">    <span style="color: #000066;">applicationComplete</span>=<span style="color: #ff0000;">"initialise()"</span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;mx:Script<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+        <span style="color: #339933;">&lt;![CDATA[</span>
+<span style="color: #339933;">            import com.scottlogic.logging.RemoteTarget;</span>
+<span style="color: #339933;">            import mx.logging.Log;</span>
+<span style="color: #339933;">            import mx.logging.LogEventLevel;</span>
+<span style="color: #339933;">            import mx.logging.ILogger;</span>
+&nbsp;
+<span style="color: #339933;">            private static const LOG:ILogger = Log.getLogger("RemoteLogging");</span>
+&nbsp;
+<span style="color: #339933;">            private function initialise():void</span>
+<span style="color: #339933;">            {</span>
+<span style="color: #339933;">                var target:RemoteTarget = new RemoteTarget();</span>
+<span style="color: #339933;">                target.url = ""; // set logging service URL here</span>
+<span style="color: #339933;">                target.level = LogEventLevel.INFO;</span>
+<span style="color: #339933;">                Log.addTarget(target);</span>
+<span style="color: #339933;">            }</span>
+<span style="color: #339933;">        ]]&gt;</span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/mx:Script<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;mx:Label</span> <span style="color: #000066;">text</span>=<span style="color: #ff0000;">"Text:"</span> <span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;mx:TextInput</span> <span style="color: #000066;">id</span>=<span style="color: #ff0000;">"input"</span> <span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;mx:Button</span> <span style="color: #000066;">label</span>=<span style="color: #ff0000;">"Log Text"</span> <span style="color: #000066;">click</span>=<span style="color: #ff0000;">"LOG.info(input.text);"</span> <span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/mx:Application<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><p>As the information is being sent back as a standard <a href="http://en.wikipedia.org/wiki/HTTP_POST" target="target" _blank="_blank">HTTP POST</a> with parameters, we are free to handle this however we want to, using whichever server-side technology desired.  The <a href="{{ site.url }}/blog/graham/wp-content/uploads/2010/08/RemoteLogging.zip" target="_blank">example</a> server-side code I have included is in <a href="http://www.java.com/en/" target="_blank">Java</a> and consists of a relatively simple <a href="http://download.oracle.com/javaee/5/api/javax/servlet/http/HttpServlet.html" target="_blank">HttpServlet</a> that parses the information and mirrors it onto its own logging framework, in this case <a href="http://logging.apache.org/log4j/1.2/" target="_blank">log4j</a>.</p></div>

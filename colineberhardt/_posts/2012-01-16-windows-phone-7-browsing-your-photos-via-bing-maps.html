@@ -1,0 +1,190 @@
+---
+author: Colin Eberhardt
+tags: bing maps, codeproject, EXIF, WP7
+permalink: /blog/colin/2012/01/windows-phone-7-browsing-your-photos-via-bing-maps/index.html
+layout: colineberhardt-blog
+---
+<div class="entry"><div class="topsy_widget_data topsy_theme_light-green" style="float: right; margin-left: 0.75em; background: url(data:,%7B%20%22url%22%3A%20%22http%253A%252F%252Fwww.scottlogic.co.uk%252Fblog%252Fcolin%252F2012%252F01%252Fwindows-phone-7-browsing-your-photos-via-bing-maps%252F%22%2C%20%22style%22%3A%20%22big%22%2C%20%22title%22%3A%20%22Windows%20Phone%207%20-%20Browsing%20your%20Photos%20via%20Bing%20Maps%20%23%22%20%7D);"></div><p>The Windows Phone 7 camera gives you the option to record the location where a picture was taken (under Settings = applications = pictures+camera). With this feature turned on, each application has their latitude, longitude and altitude stored as part of the standard <a href="http://en.wikipedia.org/wiki/Exchangeable_image_file_format">EXIF data</a>. I thought it would be fun to combine the previous blog post I wrote on <a href="{{ site.url }}/blog/colin/2011/11/pushpin-clustering-with-the-windows-phone-7-bing-map-control/" title="Pushpin Clustering with the Windows Phone 7 Bing Map control">pushpin clustering</a> with the photos on my camera, to allow me to explore them via a Bing Maps control. With not much more than 100 lines of code I came up with an application which I think is a lot of fun to use. </p><table>
+<tr>
+<td width="300">
+<img style="margin: 5px;" src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2012/01/screenshot.jpg" alt="" title="screenshot4" width="300" height="188" class="aligncenter size-full wp-image-1931" />
+</td>
+<td width="300">
+<img style="margin: 5px;" src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2012/01/screenshot2.jpg" alt="" title="screenshot4" width="300" height="188" class="aligncenter size-full wp-image-1931" />
+</td>
+</tr>
+<tr>
+<td>
+<p style="margin: 5px;">Here are all the photos on my phone, note the way the pushpins are clustered.</p>
+</td>
+<td>
+<p style="margin: 5px;">Here are a few pictures I took in New York, of the <a href="http://en.wikipedia.org/wiki/One_World_Trade_Center">One World Trade Centre</a> and the <a href="http://en.wikipedia.org/wiki/New_York_Stock_Exchange">Stock Exchange</a>.</p>
+</td>
+</tr>
+<tr>
+<td>
+<img style="margin: 5px;" src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2012/01/screenshot3.jpg" alt="" title="screenshot4" width="300" height="188" class="aligncenter size-full wp-image-1931" />
+</td>
+<td>
+<img style="margin: 5px;" src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2012/01/screenshot4.jpg" alt="" title="screenshot4" width="300" height="188" class="aligncenter size-full wp-image-1931" />
+</td>
+</tr>
+<tr>
+<td>
+<p style="margin: 5px;">Here are some pictures around Europe, including one of <a href="https://twitter.com/GergelyOrosz">Gergely Orosz</a> waiting for his turn in the Edinburgh Marathon Relay.</p>
+</td>
+<td>
+<p style="margin: 5px;">And finally, some pictures I took whilst running around <a href="http://en.wikipedia.org/wiki/Kielder_Water">Kielder Water</a> during Kielder marathon.</p>
+</td>
+</tr>
+</table><h2>Accessing the EXIF data</h2><p>You can access the photos on a WP7 device via the XNA <a href="http://msdn.microsoft.com/en-us/library/microsoft.xna.framework.media.medialibrary.aspx">MediaLibrary</a> class. The interface that this class provides gives you access to <a href="http://msdn.microsoft.com/en-us/library/microsoft.xna.framework.media.picture.aspx">Picture</a> instances which have properties that allow you to access the width / height and a few other basic attributes. They also have methods that return streams which can be used to read the thumbnail and image data, however, they do not expose the picture location. This is ‘hidden’ within the EXIF data.</p><p>Fortunately there is a C# implementation of an <a href="http://www.codeproject.com/KB/silverlight/Exif_Data.aspx">EXIF decoder available on codeproject</a>, which, <a href="http://timheuer.com/blog/archive/2010/09/23/working-with-pictures-in-camera-tasks-in-windows-phone-7-orientation-rotation.aspx">with a few tweaks by Tim Heuer</a> works just fine within Silverlight for Windows Phone 7.</p><p>With this library, accessing the EXIF data is a one-liner:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;">JpegInfo info <span style="color: #008000;">=</span> ExifReader<span style="color: #008000;">.</span><span style="color: #0000FF;">ReadJpeg</span><span style="color: #008000;">(</span>picture<span style="color: #008000;">.</span><span style="color: #0000FF;">GetImage</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span>, picture<span style="color: #008000;">.</span><span style="color: #0000FF;">Name</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span></pre></td></tr></table></div><p>The JpegInfo class exposes the raw EXIF geolocation data, which is detailed in the <a href="http://www.exif.org/Exif2-2.PDF">EXIF specification</a> as being expressed as separate components of degrees, minutes and seconds together with a reference direction (North / South, East / West). We can convert from the <a href="http://en.wikipedia.org/wiki/Sexagesimal">sexagesimal</a> numeric system used in EXIF, to the decimal system as follows:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">double</span> DecodeLatitude<span style="color: #008000;">(</span>JpegInfo info<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #6666cc; font-weight: bold;">double</span> degrees <span style="color: #008000;">=</span> ToDegrees<span style="color: #008000;">(</span>info<span style="color: #008000;">.</span><span style="color: #0000FF;">GpsLatitude</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">return</span> info<span style="color: #008000;">.</span><span style="color: #0000FF;">GpsLatitudeRef</span> <span style="color: #008000;">==</span> ExifGpsLatitudeRef<span style="color: #008000;">.</span><span style="color: #0000FF;">North</span> <span style="color: #008000;">?</span> degrees <span style="color: #008000;">:</span> <span style="color: #008000;">-</span>degrees<span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">double</span> DecodeLongitude<span style="color: #008000;">(</span>JpegInfo info<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #6666cc; font-weight: bold;">double</span> degrees <span style="color: #008000;">=</span> ToDegrees<span style="color: #008000;">(</span>info<span style="color: #008000;">.</span><span style="color: #0000FF;">GpsLongitude</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">return</span> info<span style="color: #008000;">.</span><span style="color: #0000FF;">GpsLongitudeRef</span> <span style="color: #008000;">==</span> ExifGpsLongitudeRef<span style="color: #008000;">.</span><span style="color: #0000FF;">East</span> <span style="color: #008000;">?</span> degrees <span style="color: #008000;">:</span> <span style="color: #008000;">-</span>degrees<span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #6666cc; font-weight: bold;">double</span> ToDegrees<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">double</span><span style="color: #008000;">[</span><span style="color: #008000;">]</span> data<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">return</span> data<span style="color: #008000;">[</span><span style="color: #FF0000;">0</span><span style="color: #008000;">]</span> <span style="color: #008000;">+</span> data<span style="color: #008000;">[</span><span style="color: #FF0000;">1</span><span style="color: #008000;">]</span> <span style="color: #008000;">/</span> <span style="color: #FF0000;">60.0</span> <span style="color: #008000;">+</span> data<span style="color: #008000;">[</span><span style="color: #FF0000;">2</span><span style="color: #008000;">]</span> <span style="color: #008000;">/</span> <span style="color: #008000;">(</span><span style="color: #FF0000;">60.0</span> <span style="color: #008000;">*</span> <span style="color: #FF0000;">60.0</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><h2>Analysing the images</h2><p>When the application starts a <code>BackgroundWorker</code> is used to read the EXIF data for all of the pictures in the phone’s media library, with those that have geolocation data available being stored in a separate list:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;">BackgroundWorker bw <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> BackgroundWorker<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+bw<span style="color: #008000;">.</span><span style="color: #0000FF;">WorkerReportsProgress</span> <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">// analyse the pictures that reside in the Media Library in a background thread</span>
+bw<span style="color: #008000;">.</span><span style="color: #0000FF;">DoWork</span> <span style="color: #008000;">+=</span> <span style="color: #008000;">(</span>s, e<span style="color: #008000;">)</span> <span style="color: #008000;">=&gt;</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">var</span> ml <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> MediaLibrary<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">using</span> <span style="color: #008000;">(</span><span style="color: #0600FF; font-weight: bold;">var</span> pics <span style="color: #008000;">=</span> ml<span style="color: #008000;">.</span><span style="color: #0000FF;">Pictures</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #6666cc; font-weight: bold;">int</span> total <span style="color: #008000;">=</span> pics<span style="color: #008000;">.</span><span style="color: #0000FF;">Count</span><span style="color: #008000;">;</span>
+    <span style="color: #6666cc; font-weight: bold;">int</span> index <span style="color: #008000;">=</span> <span style="color: #FF0000;">0</span><span style="color: #008000;">;</span>
+    <span style="color: #0600FF; font-weight: bold;">foreach</span> <span style="color: #008000;">(</span>Picture picture <span style="color: #0600FF; font-weight: bold;">in</span> pics<span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #008080; font-style: italic;">// read the EXIF data for this image</span>
+      JpegInfo info <span style="color: #008000;">=</span> ExifReader<span style="color: #008000;">.</span><span style="color: #0000FF;">ReadJpeg</span><span style="color: #008000;">(</span>picture<span style="color: #008000;">.</span><span style="color: #0000FF;">GetImage</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span>, picture<span style="color: #008000;">.</span><span style="color: #0000FF;">Name</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+      <span style="color: #008080; font-style: italic;">// check if we have co-ordinates</span>
+      <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>info<span style="color: #008000;">.</span><span style="color: #0000FF;">GpsLatitude</span><span style="color: #008000;">.</span><span style="color: #0000FF;">First</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span> <span style="color: #008000;">!=</span> <span style="color: #FF0000;">0.0</span><span style="color: #008000;">)</span>
+      <span style="color: #008000;">{</span>
+        _images<span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span><span style="color: #008000;">new</span> LocatedImage<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+        <span style="color: #008000;">{</span>
+          Picture <span style="color: #008000;">=</span> picture,
+          Lat <span style="color: #008000;">=</span> DecodeLatitude<span style="color: #008000;">(</span>info<span style="color: #008000;">)</span>,
+          <span style="color: #6666cc; font-weight: bold;">Long</span> <span style="color: #008000;">=</span> DecodeLongitude<span style="color: #008000;">(</span>info<span style="color: #008000;">)</span>
+        <span style="color: #008000;">}</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      <span style="color: #008000;">}</span>
+&nbsp;
+      <span style="color: #008080; font-style: italic;">// report progress back to the UI thread</span>
+      <span style="color: #6666cc; font-weight: bold;">string</span> progress <span style="color: #008000;">=</span> <span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Format</span><span style="color: #008000;">(</span><span style="color: #666666;">"{0} / {1}"</span>, index, total<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      bw<span style="color: #008000;">.</span><span style="color: #0000FF;">ReportProgress</span><span style="color: #008000;">(</span><span style="color: #008000;">(</span>index <span style="color: #008000;">*</span> <span style="color: #FF0000;">100</span> <span style="color: #008000;">/</span> total<span style="color: #008000;">)</span>, progress<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+      index<span style="color: #008000;">++;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">// update progress on the UI thread</span>
+bw<span style="color: #008000;">.</span><span style="color: #0000FF;">ProgressChanged</span> <span style="color: #008000;">+=</span> <span style="color: #008000;">(</span>s, e<span style="color: #008000;">)</span> <span style="color: #008000;">=&gt;</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #6666cc; font-weight: bold;">string</span> title <span style="color: #008000;">=</span> <span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span><span style="color: #008000;">)</span>e<span style="color: #008000;">.</span><span style="color: #0000FF;">UserState</span><span style="color: #008000;">;</span>
+    ApplicationTitle<span style="color: #008000;">.</span><span style="color: #0000FF;">Text</span> <span style="color: #008000;">=</span> title<span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span><span style="color: #008000;">;</span>
+&nbsp;
+bw<span style="color: #008000;">.</span><span style="color: #0000FF;">RunWorkerAsync</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">// when analysis is complete, add the pushpins</span>
+bw<span style="color: #008000;">.</span><span style="color: #0000FF;">RunWorkerCompleted</span> <span style="color: #008000;">+=</span> <span style="color: #008000;">(</span>s, e<span style="color: #008000;">)</span> <span style="color: #008000;">=&gt;</span>
+  <span style="color: #008000;">{</span>
+    ApplicationTitle<span style="color: #008000;">.</span><span style="color: #0000FF;">Text</span> <span style="color: #008000;">=</span> <span style="color: #666666;">""</span><span style="color: #008000;">;</span>
+    AddPushpins<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span><span style="color: #008000;">;</span></pre></td></tr></table></div><p>When the pictures have all been analysed, a pushpin is created for each image which is then added to the <a href="{{ site.url }}/blog/colin/2011/11/pushpin-clustering-with-the-windows-phone-7-bing-map-control/" title="Pushpin Clustering with the Windows Phone 7 Bing Map control">clusterer described in my previous blog post</a>.</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> AddPushpins<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  List<span style="color: #008000;">&lt;</span>Pushpin<span style="color: #008000;">&gt;</span> pushPins <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> List<span style="color: #008000;">&lt;</span>Pushpin<span style="color: #008000;">&gt;</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// create a pushpin for each picture</span>
+  <span style="color: #0600FF; font-weight: bold;">foreach</span> <span style="color: #008000;">(</span><span style="color: #0600FF; font-weight: bold;">var</span> image <span style="color: #0600FF; font-weight: bold;">in</span> _images<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    Location location <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> Location<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      Latitude <span style="color: #008000;">=</span> image<span style="color: #008000;">.</span><span style="color: #0000FF;">Lat</span>,
+      Longitude <span style="color: #008000;">=</span> image<span style="color: #008000;">.</span><span style="color: #6666cc; font-weight: bold;">Long</span>
+    <span style="color: #008000;">}</span><span style="color: #008000;">;</span>
+&nbsp;
+    Pushpin myPushpin <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> Pushpin<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      Location <span style="color: #008000;">=</span> location,
+      DataContext <span style="color: #008000;">=</span> image,
+      Content <span style="color: #008000;">=</span> image,
+      ContentTemplate <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">this</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Resources</span><span style="color: #008000;">[</span><span style="color: #666666;">"MarkerTemplate"</span><span style="color: #008000;">]</span> <span style="color: #0600FF; font-weight: bold;">as</span> DataTemplate
+    <span style="color: #008000;">}</span><span style="color: #008000;">;</span>
+&nbsp;
+    pushPins<span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span>myPushpin<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// add them to the map via a clusterer</span>
+  <span style="color: #0600FF; font-weight: bold;">var</span> clusterer <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> PushpinClusterer<span style="color: #008000;">(</span>map, pushPins, <span style="color: #0600FF; font-weight: bold;">this</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Resources</span><span style="color: #008000;">[</span><span style="color: #666666;">"ClusterTemplate"</span><span style="color: #008000;">]</span> <span style="color: #0600FF; font-weight: bold;">as</span> DataTemplate<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>The template used for the pushpins simply renders the image thumbnail:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;DataTemplate</span> <span style="color: #000066;">x:Key</span>=<span style="color: #ff0000;">"MarkerTemplate"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Border</span> <span style="color: #000066;">BorderBrush</span>=<span style="color: #ff0000;">"White"</span> <span style="color: #000066;">BorderThickness</span>=<span style="color: #ff0000;">"1"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Image</span> <span style="color: #000066;">Source</span>=<span style="color: #ff0000;">"{Binding Picture, Converter={StaticResource PictureThumbnailConverter}}"</span></span>
+<span style="color: #009900;">            <span style="color: #000066;">Width</span>=<span style="color: #ff0000;">"80"</span> <span style="color: #000066;">Height</span>=<span style="color: #ff0000;">"80"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Border<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/DataTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><p>This makes use of a simple value converter which takes a <code>Picture</code> instance and converts it into a <code>BitmapImage </code>which is used as the <code>Source </code>for the image:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> PictureThumbnailConverter <span style="color: #008000;">:</span> IValueConverter
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">object</span> Convert<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> <span style="color: #0600FF; font-weight: bold;">value</span>, Type targetType, <span style="color: #6666cc; font-weight: bold;">object</span> parameter, <span style="color: #000000;">System.<span style="color: #0000FF;">Globalization</span></span><span style="color: #008000;">.</span><span style="color: #0000FF;">CultureInfo</span> culture<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    Picture picture <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">value</span> <span style="color: #0600FF; font-weight: bold;">as</span> Picture<span style="color: #008000;">;</span>
+    BitmapImage src <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> BitmapImage<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    src<span style="color: #008000;">.</span><span style="color: #0000FF;">SetSource</span><span style="color: #008000;">(</span>picture<span style="color: #008000;">.</span><span style="color: #0000FF;">GetThumbnail</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #0600FF; font-weight: bold;">return</span> src<span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">object</span> ConvertBack<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> <span style="color: #0600FF; font-weight: bold;">value</span>, Type targetType, <span style="color: #6666cc; font-weight: bold;">object</span> parameter, <span style="color: #000000;">System.<span style="color: #0000FF;">Globalization</span></span><span style="color: #008000;">.</span><span style="color: #0000FF;">CultureInfo</span> culture<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>The puhspin clusterer allows you to specify a separate template for clustered pushpins. The <code>DataContext</code> for this template is a list of the <code>DataContexts</code> of the clustered pins that it represents. For this application I created a template which renders what looks like a ‘stack’ of images. The number of pictures in the cluster is rendered as a <code>TextBlock</code> and the last image in the cluster rendered.</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;DataTemplate</span> <span style="color: #000066;">x:Key</span>=<span style="color: #ff0000;">"ClusterTemplate"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Grid</span> <span style="color: #000066;">Width</span>=<span style="color: #ff0000;">"75"</span> <span style="color: #000066;">Height</span>=<span style="color: #ff0000;">"75"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Canvas<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Border</span> <span style="color: #000066;">Style</span>=<span style="color: #ff0000;">"{StaticResource FakePhoto}"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">Canvas.Left</span>=<span style="color: #ff0000;">"0"</span> <span style="color: #000066;">Canvas.Top</span>=<span style="color: #ff0000;">"0"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Border</span> <span style="color: #000066;">Style</span>=<span style="color: #ff0000;">"{StaticResource FakePhoto}"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">Canvas.Left</span>=<span style="color: #ff0000;">"5"</span> <span style="color: #000066;">Canvas.Top</span>=<span style="color: #ff0000;">"5"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Border</span> <span style="color: #000066;">BorderBrush</span>=<span style="color: #ff0000;">"White"</span> <span style="color: #000066;">BorderThickness</span>=<span style="color: #ff0000;">"1"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">Canvas.Left</span>=<span style="color: #ff0000;">"10"</span> <span style="color: #000066;">Canvas.Top</span>=<span style="color: #ff0000;">"10"</span></span>
+<span style="color: #009900;">              <span style="color: #000066;">DataContext</span>=<span style="color: #ff0000;">"{Binding Path=., Converter={StaticResource LastConverter}}"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+        <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Image</span> <span style="color: #000066;">Source</span>=<span style="color: #ff0000;">"{Binding Picture, Converter={StaticResource PictureThumbnailConverter}}"</span></span>
+<span style="color: #009900;">                <span style="color: #000066;">Width</span>=<span style="color: #ff0000;">"60"</span> <span style="color: #000066;">Height</span>=<span style="color: #ff0000;">"60"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Border<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+      <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"{Binding Count}"</span></span>
+<span style="color: #009900;">                  <span style="color: #000066;">Opacity</span>=<span style="color: #ff0000;">"0.5"</span></span>
+<span style="color: #009900;">                  <span style="color: #000066;">Canvas.Left</span>=<span style="color: #ff0000;">"25"</span> <span style="color: #000066;">Canvas.Top</span>=<span style="color: #ff0000;">"15"</span></span>
+<span style="color: #009900;">                  <span style="color: #000066;">FontSize</span>=<span style="color: #ff0000;">"35"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+    <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Canvas<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Grid<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>      
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/DataTemplate<span style="color: #000000; font-weight: bold;">&gt;</span></span></span>
+&nbsp;
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Style</span> <span style="color: #000066;">TargetType</span>=<span style="color: #ff0000;">"Border"</span> <span style="color: #000066;">x:Key</span>=<span style="color: #ff0000;">"FakePhoto"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Setter</span> <span style="color: #000066;">Property</span>=<span style="color: #ff0000;">"Width"</span> <span style="color: #000066;">Value</span>=<span style="color: #ff0000;">"60"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Setter</span> <span style="color: #000066;">Property</span>=<span style="color: #ff0000;">"Height"</span> <span style="color: #000066;">Value</span>=<span style="color: #ff0000;">"60"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Setter</span> <span style="color: #000066;">Property</span>=<span style="color: #ff0000;">"BorderBrush"</span> <span style="color: #000066;">Value</span>=<span style="color: #ff0000;">"White"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Setter</span> <span style="color: #000066;">Property</span>=<span style="color: #ff0000;">"Background"</span> <span style="color: #000066;">Value</span>=<span style="color: #ff0000;">"Black"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Setter</span> <span style="color: #000066;">Property</span>=<span style="color: #ff0000;">"BorderThickness"</span> <span style="color: #000066;">Value</span>=<span style="color: #ff0000;">"1"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/Style<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><p>The code that renders the last image is a bit cunning, it uses a value converter that performs a Linq style ‘last’ operations, extracting the last items from a collection of objects:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> LastConverter <span style="color: #008000;">:</span> IValueConverter
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">object</span> Convert<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> <span style="color: #0600FF; font-weight: bold;">value</span>, Type targetType, <span style="color: #6666cc; font-weight: bold;">object</span> parameter, <span style="color: #000000;">System.<span style="color: #0000FF;">Globalization</span></span><span style="color: #008000;">.</span><span style="color: #0000FF;">CultureInfo</span> culture<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    IList enumerable <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">value</span> <span style="color: #0600FF; font-weight: bold;">as</span> IList<span style="color: #008000;">;</span>
+    <span style="color: #0600FF; font-weight: bold;">return</span> enumerable<span style="color: #008000;">.</span><span style="color: #0000FF;">Cast</span><span style="color: #008000;">&lt;</span><span style="color: #6666cc; font-weight: bold;">object</span><span style="color: #008000;">&gt;</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Last</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">object</span> ConvertBack<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> <span style="color: #0600FF; font-weight: bold;">value</span>, Type targetType, <span style="color: #6666cc; font-weight: bold;">object</span> parameter, <span style="color: #000000;">System.<span style="color: #0000FF;">Globalization</span></span><span style="color: #008000;">.</span><span style="color: #0000FF;">CultureInfo</span> culture<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>This feels quite neat to me <img src="http://www.scottlogic.co.uk/blog/colin/wp-includes/images/smilies/icon_smile.gif" alt=":-)" class="wp-smiley" /> </p><p>The clustered pins look like the following, which is a cluster of 5 images around Paris, with the stunning <a href="http://en.wikipedia.org/wiki/Grande_Arche">La Grande Arche de la Défense</a> as the image at the top of the cluster:</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2012/01/cluster.jpg" alt="" title="cluster" width="229" height="157" class="aligncenter size-full wp-image-1943" /></p><p>Despite its simplicity, I have had a lot of fun playing with this application. It has certainly encouraged me to take as many photos as possible whenever I go travelling.</p><p>You can download the full sourcecode here: <a href="{{ site.url }}/blog/colin/wp-content/uploads/2012/01/PhotoBrowser.zip">PhotoBrowser.zip</a></p><p>Regards, Colin E.</p></div>

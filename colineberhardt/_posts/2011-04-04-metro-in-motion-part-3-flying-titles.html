@@ -1,0 +1,196 @@
+---
+author: Colin Eberhardt
+tags: codeproject, metro, WP7
+permalink: /blog/colin/2011/04/metro-in-motion-3-flying-titles/index.html
+layout: colineberhardt-blog
+---
+<div class="entry"><div class="topsy_widget_data topsy_theme_light-green" style="float: right; margin-left: 0.75em; background: url(data:,%7B%20%22url%22%3A%20%22http%253A%252F%252Fwww.scottlogic.co.uk%252Fblog%252Fcolin%252F2011%252F04%252Fmetro-in-motion-3-flying-titles%252F%22%2C%20%22style%22%3A%20%22big%22%2C%20%22title%22%3A%20%22Metro%20In%20Motion%20Part%20%233%20-%20Flying%20Titles%21%20%23%22%20%7D);"></div><p><i>In this blog post I look at how to implement the fly-out fly-in effect seen in native Windows Phone 7 applications. This effect is seen in the native mail application; when you click on a message, the title flies out of the list then flies back in as the title of the message page.</i></p><p>This is the third in my “Metro In Motion” series where I am looking at how to re-create some of the stylish transitions and animations found in native Windows Phone 7 applications. As a Silverlight developer we have controls that adhere to the static Metro styling, but apart from Pivot and Panorama, the more dynamic features of the Metro style are something we have to come up with ourselves. So far previous posts have provided re-useable implementations for the <a href="{{ site.url }}/blog/colin/2011/03/metro-in-motion-fluid-list-animation/">fluid list animations between pivot pages</a> and the <a href="{{ site.url }}/blog/colin/2011/03/metro-in-motion-part-2-peel-animations/">‘peel’ animation</a> seen when applications exit. In this blog post I provide a simple re-useable implementation of the title fly-out and fly-in effect. This effect is not that easy to describe, so we’ll let the following picture do the talking …</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2011/04/FlyOut.png" alt="" title="FlyOut" width="550" height="333" class="aligncenter size-full wp-image-1351" /></p><p>Here is a video of this effect recorded on the emulator. This code has also been tested on a real device, and performs just fine.</p><p><iframe title="YouTube video player" width="480" height="390" src="http://www.youtube.com/embed/hATXaLAk6VE?rel=0" frameborder="0" allowfullscreen="allowfullscreen"></iframe></p><p>Unfortunately because the animations are quite snappy, a YouTube video doesn’t do them justice. Best viewed on a real phone!</p><p>Let’s look at how this effect is implemented … </p><p>Starting with the fly-out effect, the general principle is that when the user selects an item in the list, we handle some event in code behind. We must identify the on-screen element that flies off screen and animate its location using a storyboard, whilst fading everything else from view. When this animation has completed, we navigate to the next page. When the user returns to the same page, this element must be animated to return to its original location. </p><p>In order to make the code re-useable I have created a class which you present with the element to animate, it takes care of the fly-out effect, and then the fly-in which returns the UI to the original state.</p><p>Let’s take a look at the code …</p><h2>Using This Effect</h2><p>Firstly, we need to identify the elements which we wish to animate, so here we give them a name:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;StackPanel</span> <span style="color: #000066;">Orientation</span>=<span style="color: #ff0000;">"Vertical"</span><span style="color: #000000; font-weight: bold;">&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"{Binding Title}"</span></span>
+<span style="color: #009900;">          <span style="color: #000066;">x:Name</span>=<span style="color: #ff0000;">"Title"</span></span>
+<span style="color: #009900;">          <span style="color: #000066;">Style</span>=<span style="color: #ff0000;">"{StaticResource PhoneTextLargeStyle}"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"{Binding Summary}"</span></span>
+<span style="color: #009900;">          <span style="color: #000066;">Style</span>=<span style="color: #ff0000;">"{StaticResource PhoneTextSmallStyle}"</span></span>
+<span style="color: #009900;">          <span style="color: #000066;">local:MetroInMotion.AnimationLevel</span>=<span style="color: #ff0000;">"1"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+  <span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"{Binding Date}"</span></span>
+<span style="color: #009900;">          <span style="color: #000066;">Style</span>=<span style="color: #ff0000;">"{StaticResource PhoneTextSmallStyle}"</span></span>
+<span style="color: #009900;">          <span style="color: #000066;">local:MetroInMotion.AnimationLevel</span>=<span style="color: #ff0000;">"2"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;/StackPanel<span style="color: #000000; font-weight: bold;">&gt;</span></span></span></pre></td></tr></table></div><p>The page needs an instance of the class which manages this animation effect. When the ListBox raises its SelectionChanged event we use a bit of <a href="{{ site.url }}/blog/colin/2010/03/linq-to-visual-tree/">Linq-to-VisualTree</a> to locate the element named above, then invoke <code>ItemFlyOut</code>, providing an ‘action’ which is called when the animation completes.</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">private</span> ItemFlyInAndOutAnimations _flyOutAnimation <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> ItemFlyInAndOutAnimations<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> ListBox_SelectionChanged<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, SelectionChangedEventArgs e<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  ListBox list <span style="color: #008000;">=</span> sender <span style="color: #0600FF; font-weight: bold;">as</span> ListBox<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// find the selected ListBoxItem</span>
+  <span style="color: #0600FF; font-weight: bold;">var</span> selectedContainer <span style="color: #008000;">=</span> list<span style="color: #008000;">.</span><span style="color: #0000FF;">ItemContainerGenerator</span><span style="color: #008000;">.</span><span style="color: #0000FF;">ContainerFromItem</span><span style="color: #008000;">(</span>list<span style="color: #008000;">.</span><span style="color: #0000FF;">SelectedItem</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// grab the Title element</span>
+  <span style="color: #0600FF; font-weight: bold;">var</span> exitAnimationElement <span style="color: #008000;">=</span> selectedContainer<span style="color: #008000;">.</span><span style="color: #0000FF;">Descendants</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+                                              <span style="color: #008000;">.</span><span style="color: #0000FF;">OfType</span><span style="color: #008000;">&lt;</span>FrameworkElement<span style="color: #008000;">&gt;</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+                                              <span style="color: #008000;">.</span><span style="color: #0000FF;">SingleOrDefault</span><span style="color: #008000;">(</span>el <span style="color: #008000;">=&gt;</span> el<span style="color: #008000;">.</span><span style="color: #0000FF;">Name</span> <span style="color: #008000;">==</span> <span style="color: #666666;">"Title"</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>exitAnimationElement <span style="color: #008000;">!=</span> <span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #008080; font-style: italic;">// animate the element, navigating to the new page when the animation finishes</span>
+    _flyOutAnimation<span style="color: #008000;">.</span><span style="color: #0000FF;">ItemFlyOut</span><span style="color: #008000;">(</span>exitAnimationElement, <span style="color: #008000;">(</span><span style="color: #008000;">)</span> <span style="color: #008000;">=&gt;</span>
+      <span style="color: #008000;">{</span>
+        FrameworkElement root <span style="color: #008000;">=</span> Application<span style="color: #008000;">.</span><span style="color: #0000FF;">Current</span><span style="color: #008000;">.</span><span style="color: #0000FF;">RootVisual</span> <span style="color: #0600FF; font-weight: bold;">as</span> FrameworkElement<span style="color: #008000;">;</span>
+        root<span style="color: #008000;">.</span><span style="color: #0000FF;">DataContext</span> <span style="color: #008000;">=</span> list<span style="color: #008000;">.</span><span style="color: #0000FF;">SelectedItem</span><span style="color: #008000;">;</span>
+        NavigationService<span style="color: #008000;">.</span><span style="color: #0000FF;">Navigate</span><span style="color: #008000;">(</span><span style="color: #008000;">new</span> Uri<span style="color: #008000;">(</span><span style="color: #666666;">"/DetailsPage.xaml"</span>, UriKind<span style="color: #008000;">.</span><span style="color: #0000FF;">Relative</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+      <span style="color: #008000;">}</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>     
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>When the user navigates back to the page, you simple invoke ItemFlyIn, and this class takes care of animating the title element back into view:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> MainPage_Loaded<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, RoutedEventArgs e<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #008080; font-style: italic;">// fly-in animation called via the dispatcher in order to ensure the page is fully rendered.</span>
+  Dispatcher<span style="color: #008000;">.</span><span style="color: #0000FF;">BeginInvoke</span><span style="color: #008000;">(</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span> <span style="color: #008000;">=&gt;</span> _flyOutAnimation<span style="color: #008000;">.</span><span style="color: #0000FF;">ItemFlyIn</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span> <span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>This class also has a static method which can be used to animate the page title into view. With the page title named in XAML, it is as easy to use as this …</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">partial</span> <span style="color: #6666cc; font-weight: bold;">class</span> DetailsPage <span style="color: #008000;">:</span> PhoneApplicationPage
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> DetailsPage<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    InitializeComponent<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    ItemFlyInAndOutAnimations<span style="color: #008000;">.</span><span style="color: #0000FF;">TitleFlyIn</span><span style="color: #008000;">(</span>PageTitle<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>So, this aptly named <code>ItemFlyInAndOutAnimations</code> does a good job of making this effect re-useable. Let’s look under the covers to see how it works …</p><h2>How It Works</h2><p>Probably the trickiest part of this effect for me was working out how to fade the page, via its opacity, without fading out the element being animated. The opacity property is inherited from an element to its children, therefore, if you set the opacity of the page, every element within it will have their opacity set also. To avoid this, the solution I came up with ‘clones’ the element that is being animated and places it in a popup, the popup also contains a full-screen rectangle which is used to fade-out the background.</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2011/04/PopUp.png" alt="" title="PopUp" width="500" height="493" class="aligncenter size-full wp-image-1353" /></p><p>The class which performs the animation constructs a <code>Popup</code> and a <code>Canvas</code> which is the popup’s child element:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Animates an element so that it flies out and flies in!</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> ItemFlyInAndOutAnimations
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> Popup _popup<span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> Canvas _popupCanvas<span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> FrameworkElement _targetElement<span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> Point _targetElementPosition<span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> Image _targetElementClone<span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> Rectangle _backgroundMask<span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">static</span> TimeSpan _flyInSpeed <span style="color: #008000;">=</span> TimeSpan<span style="color: #008000;">.</span><span style="color: #0000FF;">FromMilliseconds</span><span style="color: #008000;">(</span><span style="color: #FF0000;">200</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">static</span> TimeSpan _flyOutSpeed <span style="color: #008000;">=</span> TimeSpan<span style="color: #008000;">.</span><span style="color: #0000FF;">FromMilliseconds</span><span style="color: #008000;">(</span><span style="color: #FF0000;">300</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> ItemFlyInAndOutAnimations<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #008080; font-style: italic;">// construct a popup, with a Canvas as its child</span>
+    _popup <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> Popup<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    _popupCanvas <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> Canvas<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    _popup<span style="color: #008000;">.</span><span style="color: #0000FF;">Child</span> <span style="color: #008000;">=</span> _popupCanvas<span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+ <span style="color: #008000;">...</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>The fly-out animation creates a full-screen rectangle which masks everything on the screen, it then clones the visuals of the element being animated using a <code>WriteableBitmap</code> and places this in the popup also. A number of <code>DoubleAnimations</code> are constructed, one which animates the X location, one for the Y and one which animates the rectangle opacity to gradually fade-out the background. Note, the curved path that the animated element follows is achieved by using a <code>EaseOut</code> on the Y animation, and an <code>EaseIn</code> on the X:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Animate the given element so that it flies off screen, fading </span>
+<span style="color: #008080; font-style: italic;">/// everything else that is on screen.</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">void</span> ItemFlyOut<span style="color: #008000;">(</span>FrameworkElement element, Action action<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  _targetElement <span style="color: #008000;">=</span> element<span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">var</span> rootElement <span style="color: #008000;">=</span> Application<span style="color: #008000;">.</span><span style="color: #0000FF;">Current</span><span style="color: #008000;">.</span><span style="color: #0000FF;">RootVisual</span> <span style="color: #0600FF; font-weight: bold;">as</span> FrameworkElement<span style="color: #008000;">;</span>
+&nbsp;
+  _backgroundMask <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> Rectangle<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    Fill <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> SolidColorBrush<span style="color: #008000;">(</span>Colors<span style="color: #008000;">.</span><span style="color: #0000FF;">Black</span><span style="color: #008000;">)</span>,
+    Opacity <span style="color: #008000;">=</span> <span style="color: #FF0000;">0.0</span>,
+    Width <span style="color: #008000;">=</span> rootElement<span style="color: #008000;">.</span><span style="color: #0000FF;">ActualWidth</span>,
+    Height <span style="color: #008000;">=</span> rootElement<span style="color: #008000;">.</span><span style="color: #0000FF;">ActualHeight</span>
+  <span style="color: #008000;">}</span><span style="color: #008000;">;</span>
+  _popupCanvas<span style="color: #008000;">.</span><span style="color: #0000FF;">Children</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span>_backgroundMask<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  _targetElementClone <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> Image<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    Source <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> WriteableBitmap<span style="color: #008000;">(</span>element, <span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">}</span><span style="color: #008000;">;</span>
+  _popupCanvas<span style="color: #008000;">.</span><span style="color: #0000FF;">Children</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span>_targetElementClone<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  _targetElementPosition <span style="color: #008000;">=</span> element<span style="color: #008000;">.</span><span style="color: #0000FF;">GetRelativePosition</span><span style="color: #008000;">(</span>rootElement<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  Canvas<span style="color: #008000;">.</span><span style="color: #0000FF;">SetTop</span><span style="color: #008000;">(</span>_targetElementClone, _targetElementPosition<span style="color: #008000;">.</span><span style="color: #0000FF;">Y</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  Canvas<span style="color: #008000;">.</span><span style="color: #0000FF;">SetLeft</span><span style="color: #008000;">(</span>_targetElementClone, _targetElementPosition<span style="color: #008000;">.</span><span style="color: #0000FF;">X</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">var</span> sb <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> Storyboard<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// animate the X position</span>
+  <span style="color: #0600FF; font-weight: bold;">var</span> db <span style="color: #008000;">=</span> CreateDoubleAnimation<span style="color: #008000;">(</span>_targetElementPosition<span style="color: #008000;">.</span><span style="color: #0000FF;">X</span>, _targetElementPosition<span style="color: #008000;">.</span><span style="color: #0000FF;">X</span> <span style="color: #008000;">+</span> <span style="color: #FF0000;">500</span>,
+      <span style="color: #008000;">new</span> SineEase<span style="color: #008000;">(</span><span style="color: #008000;">)</span> <span style="color: #008000;">{</span> EasingMode <span style="color: #008000;">=</span> EasingMode<span style="color: #008000;">.</span><span style="color: #0000FF;">EaseIn</span> <span style="color: #008000;">}</span>,
+      _targetElementClone, Canvas<span style="color: #008000;">.</span><span style="color: #0000FF;">LeftProperty</span>, _flyOutSpeed<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  sb<span style="color: #008000;">.</span><span style="color: #0000FF;">Children</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span>db<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// animate the Y position</span>
+  db <span style="color: #008000;">=</span> CreateDoubleAnimation<span style="color: #008000;">(</span>_targetElementPosition<span style="color: #008000;">.</span><span style="color: #0000FF;">Y</span>, _targetElementPosition<span style="color: #008000;">.</span><span style="color: #0000FF;">Y</span> <span style="color: #008000;">+</span> <span style="color: #FF0000;">50</span>,
+      <span style="color: #008000;">new</span> SineEase<span style="color: #008000;">(</span><span style="color: #008000;">)</span> <span style="color: #008000;">{</span> EasingMode <span style="color: #008000;">=</span> EasingMode<span style="color: #008000;">.</span><span style="color: #0000FF;">EaseOut</span> <span style="color: #008000;">}</span>,
+      _targetElementClone, Canvas<span style="color: #008000;">.</span><span style="color: #0000FF;">TopProperty</span>, _flyOutSpeed<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  sb<span style="color: #008000;">.</span><span style="color: #0000FF;">Children</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span>db<span style="color: #008000;">)</span><span style="color: #008000;">;</span>     
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// fade out the other elements</span>
+  db <span style="color: #008000;">=</span> CreateDoubleAnimation<span style="color: #008000;">(</span><span style="color: #FF0000;">0</span>, <span style="color: #FF0000;">1</span>,
+      <span style="color: #0600FF; font-weight: bold;">null</span>, _backgroundMask, UIElement<span style="color: #008000;">.</span><span style="color: #0000FF;">OpacityProperty</span>, _flyOutSpeed<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  sb<span style="color: #008000;">.</span><span style="color: #0000FF;">Children</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span>db<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  sb<span style="color: #008000;">.</span><span style="color: #0000FF;">Completed</span> <span style="color: #008000;">+=</span> <span style="color: #008000;">(</span>s, e2<span style="color: #008000;">)</span> <span style="color: #008000;">=&gt;</span>
+    <span style="color: #008000;">{</span>
+      action<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+      <span style="color: #008080; font-style: italic;">// hide the popup, by placing a task on the dispatcher queue, this</span>
+      <span style="color: #008080; font-style: italic;">// should be executed after the navigation has occurred</span>
+      element<span style="color: #008000;">.</span><span style="color: #0000FF;">Dispatcher</span><span style="color: #008000;">.</span><span style="color: #0000FF;">BeginInvoke</span><span style="color: #008000;">(</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span> <span style="color: #008000;">=&gt;</span>
+      <span style="color: #008000;">{</span>
+        _popup<span style="color: #008000;">.</span><span style="color: #0000FF;">IsOpen</span> <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">false</span><span style="color: #008000;">;</span>
+      <span style="color: #008000;">}</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// hide the element we have 'cloned' into the popup</span>
+  element<span style="color: #008000;">.</span><span style="color: #0000FF;">Opacity</span> <span style="color: #008000;">=</span> <span style="color: #FF0000;">0.0</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// open the popup</span>
+  _popup<span style="color: #008000;">.</span><span style="color: #0000FF;">IsOpen</span> <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// begin the animation</span>
+  sb<span style="color: #008000;">.</span><span style="color: #0000FF;">Begin</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #0600FF; font-weight: bold;">static</span> DoubleAnimation CreateDoubleAnimation<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">double</span> <span style="color: #0600FF; font-weight: bold;">from</span>, <span style="color: #6666cc; font-weight: bold;">double</span> to, IEasingFunction easing,
+  DependencyObject target, <span style="color: #6666cc; font-weight: bold;">object</span> propertyPath, TimeSpan duration<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">var</span> db <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> DoubleAnimation<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  db<span style="color: #008000;">.</span><span style="color: #0000FF;">To</span> <span style="color: #008000;">=</span> to<span style="color: #008000;">;</span>
+  db<span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">From</span> <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">from</span><span style="color: #008000;">;</span>
+  db<span style="color: #008000;">.</span><span style="color: #0000FF;">EasingFunction</span> <span style="color: #008000;">=</span> easing<span style="color: #008000;">;</span>
+  db<span style="color: #008000;">.</span><span style="color: #0000FF;">Duration</span> <span style="color: #008000;">=</span> duration<span style="color: #008000;">;</span>
+  Storyboard<span style="color: #008000;">.</span><span style="color: #0000FF;">SetTarget</span><span style="color: #008000;">(</span>db, target<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  Storyboard<span style="color: #008000;">.</span><span style="color: #0000FF;">SetTargetProperty</span><span style="color: #008000;">(</span>db, <span style="color: #008000;">new</span> PropertyPath<span style="color: #008000;">(</span>propertyPath<span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #0600FF; font-weight: bold;">return</span> db<span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>Animating the element back into view is a little easier, here we remove the background mask and animate our cloned element back to its original location. Once the animation has completed we hide the popup and destroy our temporary visuals, and finally set the opacity of the original element back to ’1.0′ returning the UI to its original state:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Animate the previously 'flown-out' element back to its original location.</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">void</span> ItemFlyIn<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>_popupCanvas<span style="color: #008000;">.</span><span style="color: #0000FF;">Children</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Count</span> <span style="color: #008000;">!=</span> <span style="color: #FF0000;">2</span><span style="color: #008000;">)</span>
+    <span style="color: #0600FF; font-weight: bold;">return</span><span style="color: #008000;">;</span>
+&nbsp;
+  _popup<span style="color: #008000;">.</span><span style="color: #0000FF;">IsOpen</span> <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">true</span><span style="color: #008000;">;</span>
+  _backgroundMask<span style="color: #008000;">.</span><span style="color: #0000FF;">Opacity</span> <span style="color: #008000;">=</span> <span style="color: #FF0000;">0.0</span><span style="color: #008000;">;</span>
+&nbsp;
+  Image animatedImage <span style="color: #008000;">=</span> _popupCanvas<span style="color: #008000;">.</span><span style="color: #0000FF;">Children</span><span style="color: #008000;">[</span><span style="color: #FF0000;">1</span><span style="color: #008000;">]</span> <span style="color: #0600FF; font-weight: bold;">as</span> Image<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">var</span> sb <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> Storyboard<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// animate the X position</span>
+  <span style="color: #0600FF; font-weight: bold;">var</span> db <span style="color: #008000;">=</span> CreateDoubleAnimation<span style="color: #008000;">(</span>_targetElementPosition<span style="color: #008000;">.</span><span style="color: #0000FF;">X</span> <span style="color: #008000;">-</span> <span style="color: #FF0000;">100</span>, _targetElementPosition<span style="color: #008000;">.</span><span style="color: #0000FF;">X</span>,
+      <span style="color: #008000;">new</span> SineEase<span style="color: #008000;">(</span><span style="color: #008000;">)</span>,
+      _targetElementClone, Canvas<span style="color: #008000;">.</span><span style="color: #0000FF;">LeftProperty</span>, _flyInSpeed<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  sb<span style="color: #008000;">.</span><span style="color: #0000FF;">Children</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span>db<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// animate the Y position</span>
+  db <span style="color: #008000;">=</span> CreateDoubleAnimation<span style="color: #008000;">(</span>_targetElementPosition<span style="color: #008000;">.</span><span style="color: #0000FF;">Y</span> <span style="color: #008000;">-</span> <span style="color: #FF0000;">50</span>, _targetElementPosition<span style="color: #008000;">.</span><span style="color: #0000FF;">Y</span>,
+      <span style="color: #008000;">new</span> SineEase<span style="color: #008000;">(</span><span style="color: #008000;">)</span>,
+      _targetElementClone, Canvas<span style="color: #008000;">.</span><span style="color: #0000FF;">TopProperty</span>, _flyInSpeed<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  sb<span style="color: #008000;">.</span><span style="color: #0000FF;">Children</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Add</span><span style="color: #008000;">(</span>db<span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  sb<span style="color: #008000;">.</span><span style="color: #0000FF;">Completed</span> <span style="color: #008000;">+=</span> <span style="color: #008000;">(</span>s, e<span style="color: #008000;">)</span> <span style="color: #008000;">=&gt;</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #008080; font-style: italic;">// when the animation has finished, hide the popup once more</span>
+      _popup<span style="color: #008000;">.</span><span style="color: #0000FF;">IsOpen</span> <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">false</span><span style="color: #008000;">;</span>
+&nbsp;
+      <span style="color: #008080; font-style: italic;">// restore the element we have animated</span>
+      _targetElement<span style="color: #008000;">.</span><span style="color: #0000FF;">Opacity</span> <span style="color: #008000;">=</span> <span style="color: #FF0000;">1.0</span><span style="color: #008000;">;</span>
+&nbsp;
+      <span style="color: #008080; font-style: italic;">// and get rid of our clone</span>
+      _popupCanvas<span style="color: #008000;">.</span><span style="color: #0000FF;">Children</span><span style="color: #008000;">.</span><span style="color: #0000FF;">Clear</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span><span style="color: #008000;">;</span>
+&nbsp;
+  sb<span style="color: #008000;">.</span><span style="color: #0000FF;">Begin</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>And there we have it, Metro style flying titles!</p><p>You can download the full sourcecode here: <a href="{{ site.url }}/blog/colin/wp-content/uploads/2011/04/MetroInMotion3.zip">MetroInMotion3.zip</a></p><p>Regards, Colin E.</p></div>

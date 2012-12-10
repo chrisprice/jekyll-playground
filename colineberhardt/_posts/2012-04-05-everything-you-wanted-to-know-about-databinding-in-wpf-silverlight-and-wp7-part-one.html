@@ -1,0 +1,206 @@
+---
+author: Colin Eberhardt
+tags: binding, silverlight, WP7, WPF
+permalink: /blog/colin/2012/04/everything-you-wanted-to-know-about-databinding-in-wpf-silverlight-and-wp7-part-one/index.html
+layout: colineberhardt-blog
+---
+<div class="entry"><div class="topsy_widget_data topsy_theme_light-green" style="float: right; margin-left: 0.75em; background: url(data:,%7B%20%22url%22%3A%20%22http%253A%252F%252Fwww.scottlogic.co.uk%252Fblog%252Fcolin%252F2012%252F04%252Feverything-you-wanted-to-know-about-databinding-in-wpf-silverlight-and-wp7-part-one%252F%22%2C%20%22style%22%3A%20%22big%22%2C%20%22title%22%3A%20%22Everything%20you%20wanted%20to%20know%20about%20databinding%20in%20WPF%2C%20Silverlight%20and%20WP7%20%28Part%20One%29%20%23%22%20%7D);"></div><p>OK, so the title is a little ambitious, but there is nothing wrong with setting yourself lofty aims! Because of the depth of this topic I have decided to split this tutorial up into a series of blog posts, each of which explore a different aspect of the binding framework.</p><p>I don’t usually write tutorial blog posts and series, preferring instead to develop new controls or novel techniques. However, I really felt this subject needed an in-depth tutorial. Databinding is a fundamental part of the WPF, Silverlight and the Silverlight for Windows Phone 7 frameworks. It is a powerful concept that once mastered allows you to write concise and elegant code. Yet for all its power, it is a little complex and that is my reason for launching into this blog series.</p><p>The rough outline for this series is as follows:</p><ul>
+<li>Part One – Life before binding, INotifyPropertyChanged and creating bindings in code-behind
+<li><a href="{{ site.url }}/blog/colin/2012/04/everything-you-wanted-to-know-about-databinding-in-wpf-silverlight-and-wp7-part-two/">Part Two</a> – The binding markup extensions, the DataContext and path syntax
+<li>Part Three – Other binding sources, ElementName, TemplatedParent, TemplateBinding
+<li>Part Four – Value converters
+<li>Part Five – List binding
+<li>…
+</li></li></li></li></li></li></ul><h2>Life before binding</h2><p>To understand what databinding is and the service it provides us with, it is worth looking at how you wire-up a user-interface without using databinding. We’ll start with a simple model object, or business object, and see how we can take the properties that this object exposes and display them in the UI using standard controls. We will also see how we can respond to event raised by these controls in order to update our model.</p><p>Note, that I am making the assumption that your code will contain some sort of model object. This doesn’t have to be the case! You could store your data within the UI controls directly, however this rapidly becomes un-maintainable. There are a whole host of UI patterns that have been developed in order to keep the model and the view separate (MVP, MVC, MVVM etc…)</p><p>We’ll look at how to manage the interactions between the model and the view without the help of a binding framework. For our example we’ll look at a very simple UI which displays the details of an event, its name and the date of the event:</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2012/04/figOne.png" alt="" title="figOne" width="250" height="155" class="aligncenter size-full wp-image-2073" /></p><p>The model that supports this view is shown below:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// A simple model object that represents an event</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> EventModel <span style="color: #008000;">:</span> INotifyPropertyChanged
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">string</span> _title<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Gets / sets the event title</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">string</span> Title
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">get</span> <span style="color: #008000;">{</span> <span style="color: #0600FF; font-weight: bold;">return</span> _title<span style="color: #008000;">;</span> <span style="color: #008000;">}</span>
+    <span style="color: #0600FF; font-weight: bold;">set</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span><span style="color: #0600FF; font-weight: bold;">value</span> <span style="color: #008000;">==</span> _title<span style="color: #008000;">)</span>
+        <span style="color: #0600FF; font-weight: bold;">return</span><span style="color: #008000;">;</span>
+&nbsp;
+      _title <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">value</span><span style="color: #008000;">;</span>
+      OnPropertyChanged<span style="color: #008000;">(</span><span style="color: #666666;">"Title"</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> DateTime _date<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Gets / sets the date of this event</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> DateTime Date
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">get</span> <span style="color: #008000;">{</span> <span style="color: #0600FF; font-weight: bold;">return</span> _date<span style="color: #008000;">;</span> <span style="color: #008000;">}</span>
+    <span style="color: #0600FF; font-weight: bold;">set</span>
+    <span style="color: #008000;">{</span>
+      <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span><span style="color: #0600FF; font-weight: bold;">value</span> <span style="color: #008000;">==</span> _date<span style="color: #008000;">)</span>
+        <span style="color: #0600FF; font-weight: bold;">return</span><span style="color: #008000;">;</span>
+&nbsp;
+      _date <span style="color: #008000;">=</span> <span style="color: #0600FF; font-weight: bold;">value</span><span style="color: #008000;">;</span>
+      OnPropertyChanged<span style="color: #008000;">(</span><span style="color: #666666;">"Date"</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">event</span> PropertyChangedEventHandler  PropertyChanged<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">protected</span> <span style="color: #6666cc; font-weight: bold;">void</span> OnPropertyChanged<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">string</span> propertyName<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>PropertyChanged <span style="color: #008000;">!=</span> <span style="color: #0600FF; font-weight: bold;">null</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      PropertyChanged<span style="color: #008000;">(</span><span style="color: #0600FF; font-weight: bold;">this</span>, <span style="color: #008000;">new</span> PropertyChangedEventArgs<span style="color: #008000;">(</span>propertyName<span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>In our case the model implements <code>INotifyPropertyChanged</code>, allowing us to detect changes in its properties. We will use this to update the view when the model changes.</p><p>The view has the following XAML (with the various layout properties omitted for clarity):</p><div class="wp_syntax"><table><tr><td class="code"><pre class="xml" style="font-family: monospace;"><span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"Name:"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBox</span> <span style="color: #000066;">x:Name</span>=<span style="color: #ff0000;">"EventTitle"</span></span>
+<span style="color: #009900;">          <span style="color: #000066;">TextChanged</span>=<span style="color: #ff0000;">"EventTitle_TextChanged"</span></span>
+&nbsp;
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;TextBlock</span> <span style="color: #000066;">Text</span>=<span style="color: #ff0000;">"Date:"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;sdk:DatePicker</span> <span style="color: #000066;">x:Name</span>=<span style="color: #ff0000;">"EventDate"</span></span>
+<span style="color: #009900;">                <span style="color: #000066;">SelectedDateChanged</span>=<span style="color: #ff0000;">"EventDate_SelectedDateChanged"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span>
+&nbsp;
+<span style="color: #009900;"><span style="color: #000000; font-weight: bold;">&lt;Button</span> <span style="color: #000066;">Content</span>=<span style="color: #ff0000;">"Modify Event"</span></span>
+<span style="color: #009900;">        <span style="color: #000066;">Click</span>=<span style="color: #ff0000;">"Button_Click"</span><span style="color: #000000; font-weight: bold;">/&gt;</span></span></pre></td></tr></table></div><p>The code-behind that supports this view is given below:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">partial</span> <span style="color: #6666cc; font-weight: bold;">class</span> MainPage <span style="color: #008000;">:</span> UserControl
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> EventModel _event<span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">public</span> MainPage<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    InitializeComponent<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// create a model object</span>
+    _event <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> EventModel<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      Date <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> DateTime<span style="color: #008000;">(</span><span style="color: #FF0000;">2011</span>, <span style="color: #FF0000;">7</span>, <span style="color: #FF0000;">1</span><span style="color: #008000;">)</span>,
+      Title <span style="color: #008000;">=</span> <span style="color: #666666;">"Silverlight User Group"</span>
+    <span style="color: #008000;">}</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// copy our model object state to the UI</span>
+    EventDate<span style="color: #008000;">.</span><span style="color: #0000FF;">SelectedDate</span> <span style="color: #008000;">=</span> _event<span style="color: #008000;">.</span><span style="color: #0000FF;">Date</span><span style="color: #008000;">;</span>
+    EventTitle<span style="color: #008000;">.</span><span style="color: #0000FF;">Text</span> <span style="color: #008000;">=</span> _event<span style="color: #008000;">.</span><span style="color: #0000FF;">Title</span><span style="color: #008000;">;</span>
+&nbsp;
+    <span style="color: #008080; font-style: italic;">// 'listen' to changes in the model</span>
+    _event<span style="color: #008000;">.</span><span style="color: #0000FF;">PropertyChanged</span> <span style="color: #008000;">+=</span> Event_PropertyChanged<span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Handles changes in the model, reflecting this change in the UI (view)</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> Event_PropertyChanged<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, PropertyChangedEventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>e<span style="color: #008000;">.</span><span style="color: #0000FF;">PropertyName</span> <span style="color: #008000;">==</span> <span style="color: #666666;">"Title"</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      EventTitle<span style="color: #008000;">.</span><span style="color: #0000FF;">Text</span> <span style="color: #008000;">=</span> _event<span style="color: #008000;">.</span><span style="color: #0000FF;">Title</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+    <span style="color: #0600FF; font-weight: bold;">if</span> <span style="color: #008000;">(</span>e<span style="color: #008000;">.</span><span style="color: #0000FF;">PropertyName</span> <span style="color: #008000;">==</span> <span style="color: #666666;">"Date"</span><span style="color: #008000;">)</span>
+    <span style="color: #008000;">{</span>
+      EventDate<span style="color: #008000;">.</span><span style="color: #0000FF;">SelectedDate</span> <span style="color: #008000;">=</span> _event<span style="color: #008000;">.</span><span style="color: #0000FF;">Date</span><span style="color: #008000;">;</span>
+    <span style="color: #008000;">}</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Handles the TextChanged event updating the model accordingly</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> EventTitle_TextChanged<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, TextChangedEventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    _event<span style="color: #008000;">.</span><span style="color: #0000FF;">Title</span> <span style="color: #008000;">=</span> EventTitle<span style="color: #008000;">.</span><span style="color: #0000FF;">Text</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Handles the SelectedDateChanged event updating the model accordingly</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> EventDate_SelectedDateChanged<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, SelectionChangedEventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    _event<span style="color: #008000;">.</span><span style="color: #0000FF;">Date</span> <span style="color: #008000;">=</span> EventDate<span style="color: #008000;">.</span><span style="color: #0000FF;">SelectedDate</span><span style="color: #008000;">.</span><span style="color: #0600FF; font-weight: bold;">Value</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+&nbsp;
+  <span style="color: #0600FF; font-weight: bold;">private</span> <span style="color: #6666cc; font-weight: bold;">void</span> Button_Click<span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">object</span> sender, RoutedEventArgs e<span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #008080; font-style: italic;">// make some change to our event</span>
+    _event<span style="color: #008000;">.</span><span style="color: #0000FF;">Title</span> <span style="color: #008000;">=</span> _event<span style="color: #008000;">.</span><span style="color: #0000FF;">Title</span><span style="color: #008000;">.</span><span style="color: #0000FF;">ToLower</span><span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+    _event<span style="color: #008000;">.</span><span style="color: #0000FF;">Date</span> <span style="color: #008000;">=</span> _event<span style="color: #008000;">.</span><span style="color: #0000FF;">Date</span><span style="color: #008000;">.</span><span style="color: #0000FF;">AddDays</span><span style="color: #008000;">(</span><span style="color: #FF0000;">1</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>In order to wire-up the model with our view, the above code performs the following distinct tasks for each of the model’s properties:</p><ol>
+<li>Sets the state of the UI controls to the initial state of the model. In the above example this is done in the constructor.
+<li>Subscribes to the event that the UI control exposes to indicate a change in state. For the <code>TextBox</code> this is the <code>TextChanged</code> event, for the <code>DatePicker </code>this is the <code>SelectedDateChanged</code> event. When a change occurs, the UI state used to update the mode.
+<li>Subscribes to PropertyChanged events from the model object. The handler for this event detects the property that has changed and updates the state of the corresponding UI control.
+</li></li></li></ol><p>If we consider the model object to be the source of the data and the UI control to be the target. We can see that we have three separate flows of data:</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2012/04/bindingLifecycle.png" alt="" title="bindingLifecycle" width="400" height="372" class="aligncenter size-full wp-image-2074" /></p><p>The code for each of these three steps is distributed throughout our code, in the constructor and a variety of event handler. For each model property that we wish to expose to our user via the view, we have to add code to perform each of these three tasks. This leads to code that is hard to maintain and dataflow that are hard to trace.</p><h2>Databinding – less code, greater clarity</h2><p>Databinding provides an alternative to the manual coupling of the model to the UI controls in our view. The idea being that the binding framework takes care of all three of the tasks above. We simply state that we wish to synchronise a model property with a property of a UI control, and it does the rest. Our complex diagram above simply becomes the following:</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2012/04/binding.png" alt="" title="binding" width="600" height="111" class="aligncenter size-full wp-image-2075" /></p><p>Changes in the source property values are pushed to the target property by the binding framework, and (optionally) changes in the target are pushed to the source.</p><p>Modifying the code for our example to use the WPF / Silverlight framework results in the following code:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">public</span> MainPage<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  InitializeComponent<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// create a model object</span>
+  _event <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> EventModel<span style="color: #008000;">(</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    Date <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> DateTime<span style="color: #008000;">(</span><span style="color: #FF0000;">2011</span>, <span style="color: #FF0000;">7</span>, <span style="color: #FF0000;">1</span><span style="color: #008000;">)</span>,
+    Title <span style="color: #008000;">=</span> <span style="color: #666666;">"Silverlight User Group"</span>
+  <span style="color: #008000;">}</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// bind the Date to the UI</span>
+  EventDate<span style="color: #008000;">.</span><span style="color: #0000FF;">SetBinding</span><span style="color: #008000;">(</span>DatePicker<span style="color: #008000;">.</span><span style="color: #0000FF;">SelectedDateProperty</span>, <span style="color: #008000;">new</span> Binding<span style="color: #008000;">(</span><span style="color: #666666;">"Date"</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    Source <span style="color: #008000;">=</span> _event,
+    Mode <span style="color: #008000;">=</span> BindingMode<span style="color: #008000;">.</span><span style="color: #0000FF;">TwoWay</span>
+  <span style="color: #008000;">}</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+  <span style="color: #008080; font-style: italic;">// bind the Title to the UI</span>
+  EventTitle<span style="color: #008000;">.</span><span style="color: #0000FF;">SetBinding</span><span style="color: #008000;">(</span>TextBox<span style="color: #008000;">.</span><span style="color: #0000FF;">TextProperty</span>, <span style="color: #008000;">new</span> Binding<span style="color: #008000;">(</span><span style="color: #666666;">"Title"</span><span style="color: #008000;">)</span>
+  <span style="color: #008000;">{</span>
+    Source <span style="color: #008000;">=</span> _event,
+    Mode <span style="color: #008000;">=</span> BindingMode<span style="color: #008000;">.</span><span style="color: #0000FF;">TwoWay</span>
+  <span style="color: #008000;">}</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>This is a big improvement on the previous ‘manual’ example where three separate event handlers were required to maintain synchronization between the model and the view. Databinding allows us to declare how the model is connected to the view, with the databinding framework taking care of the mechanics.</p><p>We’ll take a closer look at the databinding syntax in order to understand its various component parts. We can highlight these components by re-writing one of the bindings as follows:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;">FrameworkElement targetObject <span style="color: #008000;">=</span> EventTitle<span style="color: #008000;">;</span>
+DependencyProperty targetProperty <span style="color: #008000;">=</span> TextBox<span style="color: #008000;">.</span><span style="color: #0000FF;">TextProperty</span><span style="color: #008000;">;</span>
+<span style="color: #6666cc; font-weight: bold;">object</span> sourceObject <span style="color: #008000;">=</span> _event<span style="color: #008000;">;</span>
+<span style="color: #6666cc; font-weight: bold;">string</span> sourceProperty <span style="color: #008000;">=</span> <span style="color: #666666;">"Title"</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #0600FF; font-weight: bold;">var</span> binding <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> Binding<span style="color: #008000;">(</span>sourceProperty<span style="color: #008000;">)</span>
+<span style="color: #008000;">{</span>
+  Source <span style="color: #008000;">=</span> sourceObject,
+  Mode <span style="color: #008000;">=</span> BindingMode<span style="color: #008000;">.</span><span style="color: #0000FF;">TwoWay</span>
+<span style="color: #008000;">}</span><span style="color: #008000;">;</span>
+targetObject<span style="color: #008000;">.</span><span style="color: #0000FF;">SetBinding</span><span style="color: #008000;">(</span>targetProperty, binding<span style="color: #008000;">)</span><span style="color: #008000;">;</span></pre></td></tr></table></div><p>From the above we can clearly see the following components:</p><ul>
+<li>The <strong>source object</strong> – this is the object which contains the data which we want to render within the UI
+<li>The <strong>source property</strong> – the property of the above object which we wish to render
+<li>The <strong>target object</strong> – this is a UI control which has a property which we are going to use to display our model property
+<li>The <strong>target property</strong> – the property of the UI control which visualises our data
+<li>The <strong>binding </strong>- this is used to indicate the source and source property, together with other information relating to the binding like the direction of data flow, value converters etc… (more on these later).
+<li><strong>SetBinding</strong> – this is the method used to associate a databinding with a specific property on the target. Note that the first argument is the dependency property that is defined on TextBox and is public static.
+</li></li></li></li></li></li></ul><p>Once a binding has been created and associated with a dependency property, the initial value is propagated from the source to the target. Following this, if the source object implements <code>INotifyPropertyChanged</code>, subsequent changes in the source property value are automatically propagated. If a <code>BindingMode.TwoWay</code> binding is used, changes to the target property, which typically occur due to user interactions, are propagated from the target to the source.</p><h2>A brief digression into dependency properties</h2><p>As you can see from the above, databinding is a feature of WPF and Silverlght dependency property mechanism. The type of properties that developers are used to from other .NET languages are typically termed ‘CLR properties’ (Where CLR refers to the Common Language Runtime) so that we know which type of property we are talking about!</p><p>CLR properties are simply shorthand for methods used to access a backing field. You cannot use the databinding framework to bind together two CLR properties. Dependency properties are something much more powerful, they provide property inheritance within the visual tree, animation support, precedence rules, coercion and, most importantly for the purposes of this article, databinding.</p><p>In the example below, a dependency property ‘TotalGoals’ is defined on a dependency object. By convention, this dependency property is exposed as a public static field on the dependency object. It is this static field that we use to identify the dependency property when binding to it:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">class</span> MatchResult <span style="color: #008000;">:</span> DependencyObject
+<span style="color: #008000;">{</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #008080; font-style: italic;">/// Identifies the TotalGoals Dependency Property.</span>
+  <span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+  <span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #0600FF; font-weight: bold;">static</span> <span style="color: #0600FF; font-weight: bold;">readonly</span> DependencyProperty TotalGoalsProperty <span style="color: #008000;">=</span>
+      DependencyProperty<span style="color: #008000;">.</span><span style="color: #0000FF;">Register</span><span style="color: #008000;">(</span><span style="color: #666666;">"TotalGoals"</span>, <span style="color: #008000;">typeof</span><span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">int</span><span style="color: #008000;">)</span>,
+      <span style="color: #008000;">typeof</span><span style="color: #008000;">(</span>MatchResult<span style="color: #008000;">)</span>, <span style="color: #008000;">new</span> PropertyMetadata<span style="color: #008000;">(</span><span style="color: #FF0000;">0</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>Once a dependency property has been defined, its value can be get / set via the GetValue / SetValue methods:</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #0600FF; font-weight: bold;">var</span> result <span style="color: #008000;">=</span> <span style="color: #008000;">new</span> MatchResult<span style="color: #008000;">(</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+<span style="color: #008080; font-style: italic;">// set the property</span>
+result<span style="color: #008000;">.</span><span style="color: #0000FF;">SetValue</span><span style="color: #008000;">(</span>MatchResult<span style="color: #008000;">.</span><span style="color: #0000FF;">TotalGoalsProperty</span>, <span style="color: #FF0000;">10</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+&nbsp;
+<span style="color: #008080; font-style: italic;">// get the property</span>
+Debug<span style="color: #008000;">.</span><span style="color: #0000FF;">WriteLine</span><span style="color: #008000;">(</span>result<span style="color: #008000;">.</span><span style="color: #0000FF;">GetValue</span><span style="color: #008000;">(</span>MatchResult<span style="color: #008000;">.</span><span style="color: #0000FF;">TotalGoalsProperty</span><span style="color: #008000;">)</span><span style="color: #008000;">)</span></pre></td></tr></table></div><p>Because the syntax to get or set a dependency property is not terribly friendly, using the <code>GetValue </code>/ <code>SetValue </code>methods, dependency objects typically provide CLR properties that wrap the dependency property access, providing a better API for manipulating the state form code-behind.</p><div class="wp_syntax"><table><tr><td class="code"><pre class="csharp" style="font-family: monospace;"><span style="color: #008080; font-style: italic;">/// &lt;summary&gt;</span>
+<span style="color: #008080; font-style: italic;">/// Gets or sets the total score. This is a dependency property.</span>
+<span style="color: #008080; font-style: italic;">/// &lt;/summary&gt;</span>
+<span style="color: #0600FF; font-weight: bold;">public</span> <span style="color: #6666cc; font-weight: bold;">int</span> TotalScore
+<span style="color: #008000;">{</span>
+  <span style="color: #0600FF; font-weight: bold;">set</span>
+  <span style="color: #008000;">{</span>
+    SetValue<span style="color: #008000;">(</span>MatchResult<span style="color: #008000;">.</span><span style="color: #0000FF;">TotalGoalsProperty</span>, <span style="color: #0600FF; font-weight: bold;">value</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+  <span style="color: #0600FF; font-weight: bold;">get</span>
+  <span style="color: #008000;">{</span>
+    <span style="color: #0600FF; font-weight: bold;">return</span> <span style="color: #008000;">(</span><span style="color: #6666cc; font-weight: bold;">int</span><span style="color: #008000;">)</span>GetValue<span style="color: #008000;">(</span>MatchResult<span style="color: #008000;">.</span><span style="color: #0000FF;">TotalGoalsProperty</span><span style="color: #008000;">)</span><span style="color: #008000;">;</span>
+  <span style="color: #008000;">}</span>
+<span style="color: #008000;">}</span></pre></td></tr></table></div><p>However, this is purely convention.</p><p>Whilst the target for a binding must be a dependency property (which must be defined on a dependency object), the source can be either a dependency property or a CLR property. In practice, unless you are creating your own controls, you will not need to create your own dependency properties. Instead, you will be binding your model to the properties of the various UI elements that are supplied with the WPF / Silverlight frameworks, for example <code>TextBlock.Text</code>. These are all dependency properties.</p><h2>A quick note about INotifyPropertyChanged</h2><p>Whilst dependency properties always notify the binding framework of any changes in value, CLR properties only notify of changes if the class which the belong to implements the <code>INotifyPropertyChanged</code> interface (as the class used in the example above does). It is not mandatory that you implement this interface, or raise the <code>PropertyChanged </code>event, for properties that your bind to your UI. However, if you do not, the binding framework will only perform a one-time update, pushing the property value from source to target at the point when the binding is created.</p><h2>BindingModes</h2><p>You can specify which direction you want property changes to propagate by setting the <code>BindingMode </code>on a binding. This is probably easiest to illustrate with a simple diagram:</p><p><img src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2012/04/bindingModes.png" alt="" title="bindingModes" width="500" height="298" class="aligncenter size-full wp-image-2076" /></p><p><code>OneWay </code>bindings only propagate changes in the source value to the target (assuming the source implements <code>INotifyPropertyChanged</code>), whereas a <code>TwoWay</code> binding propagates changes in both directions, ensuring that the two values are always synchronized. There are a few other binding modes (<code>OneWayToSource</code>, <code>OneTime</code>…) but one / two way are by far the most commonly used.</p><p><strong>WARNING</strong>: The default <code>BindingMode </code>for Silverlight is <code>OneWay</code>, whereas in WPF it is <code>BindingMode.Default</code> which means … it depends! <a href="http://msdn.microsoft.com/en-us/library/system.windows.data.bindingmode.aspx">From MSDN</a>:</p><blockquote><p>“The default value varies for each dependency property. In general, user-editable control properties, such as those of text boxes and check boxes, default to two-way bindings, whereas most other properties default to one-way bindings.”
+</p></blockquote><p>This is very confusing if you are writing cross-platform WPF / Silverlight code! In this case I would always recommend specifying the <code>BindingMode </code>explicity.</p><h2>Summary</h2><p>So far we have seen what life was like before databinding, where we had to write code to handle changes from both the source and target properties, manually synchronizing the two. With binding, the framework handles this for us, allowing for a more declarative approach to wiring-up our UI to the model that backs it (you do have a model behind your view don’t you?!).</p><p>However, you might be wondering why there has been no mention of binding in XAML yet? This was intentional, I wanted to first show how bindings work under-the-hood, introducing the concept of source and target, before leaping into creating them in XAML … which is the subject of the next blog post …</p><p>You can download the example code here: <a href="{{ site.url }}/blog/colin/wp-content/uploads/2012/04/BindingExamples.zip">BindingExamples.zip</a></p><p>Regards, Colin E.</p></div>

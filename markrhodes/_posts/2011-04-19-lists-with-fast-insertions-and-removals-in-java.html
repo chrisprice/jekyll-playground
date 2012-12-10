@@ -1,0 +1,166 @@
+---
+author: Mark Rhodes
+tags: 
+permalink: /2011/04/lists-with-fast-insertions-and-removals-in-java/index.html
+layout: blog
+---
+<div class="entry"><p><em>This post describes the implementation of a List in Java which allows log time removals and insertions.</em></p><p>Lists are probably the most useful data structures in programming.  Java provides a number of ways of creating a list out of the box with regular arrays, and the <code>ArrayList</code>, <code>LinkedList</code> and <code>Vector</code> classes in the java.util package.  However, none of these structures allow elements to be removed or added to the middle of the list in sub-linear time*, which for some applications can be useful.  <em>(* – the LinkedList allows elements to be removed (inserted) via a <a href="http://download.oracle.com/javase/6/docs/api/java/util/ListIterator.html"><code>ListIterator</code></a> in constant time, but requires that the element (position) is located first, which takes linear time).</em></p><p><a href="http://en.wikipedia.org/wiki/Self-balancing_binary_search_tree">Balanced search trees</a> and <a href="http://en.wikipedia.org/wiki/Skip_list">skip lists</a> allow this behaviour, but these work on the principle that the data is stored in some fixed order – there is no way to preserve the order in which the elements were added.  They also do not usually provide the ability to access elements by their index in the data structure, which is a key feature of a list.</p><p>In this post I’ll go through the implementation of an “unsorted” balanced search tree (<code>UnsortedList</code>), which allows the elements to be located, added and removed by index in logarithmic time, but function exactly like an <code>ArrayList</code>.  The trick is that the list compares the elements in it on their index in the list itself.  The <code>UnsortedList</code> extends the <code>SortedList</code> class I wrote for a <a href="{{ site.url }}/2010/12/sorted_lists_in_java/">previous post</a>, which provides a relatively efficient implementation of an <a href="http://en.wikipedia.org/wiki/AVL_tree">AVL tree</a> that allows elements to quickly found by their index.  I had to make a few tweaks to that code so that the required inner class and methods are exposed to overriding classes; the latest version, together with all the source code described in this blog is available here: <a href="http<a href="{{ site.url }}ploads/2011/04/mr-scottlogic-utils-1.01.zip">data structures source</a>.</p><p>The signature of the <code>UnsortedList</code> class and it’s constructor are a bit odd and look like this:</p><div class="wp_syntax"><div class="code"><pre class="java5" style="font-family: monospace;"><span style="color: #000000; font-weight: bold;">public</span> <span style="color: #000000; font-weight: bold;">class</span> UnsortedList<span style="color: #339933;">&lt;</span>T<span style="color: #339933;">&gt;</span> <span style="color: #000000; font-weight: bold;">extends</span> SortedList<span style="color: #339933;">&lt;</span>T<span style="color: #339933;">&gt;</span> <span style="color: #009900;">{</span>
+&nbsp;
+    <span style="color: #666666; font-style: italic;">//a dummy comparator which works on any object and simply returns 0..</span>
+   <span style="color: #000000; font-weight: bold;">private</span> <span style="color: #000000; font-weight: bold;">static</span> <span style="color: #003399; font-weight: bold;">Comparator</span><span style="color: #339933;">&lt;</span><span style="color: #003399; font-weight: bold;">Object</span><span style="color: #339933;">&gt;</span> DUMMY_COMPARATOR = <span style="color: #000000; font-weight: bold;">new</span> <span style="color: #003399; font-weight: bold;">Comparator</span><span style="color: #339933;">&lt;</span><span style="color: #003399; font-weight: bold;">Object</span><span style="color: #339933;">&gt;</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+        @<span style="color: #003399; font-weight: bold;">Override</span>
+        <span style="color: #000000; font-weight: bold;">public</span> <span style="color: #006600; font-weight: bold;">int</span> compare<span style="color: #009900;">(</span><span style="color: #003399; font-weight: bold;">Object</span> a, <span style="color: #003399; font-weight: bold;">Object</span> b<span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+            <span style="color: #000000; font-weight: bold;">return</span> <span style="color: #cc66cc;">0</span><span style="color: #339933;">;</span>
+       <span style="color: #009900;">}</span>
+    <span style="color: #009900;">}</span><span style="color: #339933;">;</span>
+&nbsp;
+    <span style="color: #000000; font-weight: bold;">public</span> UnsortedList<span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+        <span style="color: #000000; font-weight: bold;">super</span><span style="color: #009900;">(</span>DUMMY_COMPARATOR<span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+    <span style="color: #009900;">}</span>
+    ...</pre></div></div><p>Firstly, it’s a bit weird that an <code>UnsortedList</code> is a <code>SortedList</code>, but nevermind (perhaps I should have come up with a better name)!  The <code>SortedList</code> requires that a <a href="http://download.oracle.com/javase/6/docs/api/java/util/Comparator.html"><code>Comparator</code></a> be provided, which it uses to determine where values in the list should be located.  However, since the actual values of the elements stored at each index is not important in an <code>UnsortedList</code>, we simply provide a dummy implementation which returns 0, no matter what’s put in; it doesn’t matter as it won’t be used anyway!</p><p>So how are comparisons made?  The <code>SortedList</code> class doesn’t call the given <code>Comparator</code> directly, but calls the <code>compare</code> method on it’s inner <code>Node</code> class (which implements <code>Comparable</code>); the implementation of the Node’s <code>compare</code> method then uses this <code>Comparator</code>.  This mechanism is used to enable multiple equal elements to be stored, for more details see the <a href="http://www.scottl<a href="{{ site.url }}ava/">previous blog post</a>).  So, to get the <code>UnsortedList</code> to work, it’s this inner node’s <code>compare</code> method that needs to be replaced; which is done by overriding the class itself.  The <code>UnsortedList</code>‘s inner node class (<code>UnsortedNode</code>) which extends the <code>SortedList</code>‘s <code>Node</code> class is where most of the logic for the <code>UnsortedList</code> lies.  The start of the class looks like this:</p><div class="wp_syntax"><div class="code"><pre class="java5" style="font-family: monospace;"><span style="color: #000000; font-weight: bold;">private</span> <span style="color: #000000; font-weight: bold;">class</span> UnsortedNode <span style="color: #000000; font-weight: bold;">extends</span> <span style="color: #003399; font-weight: bold;">Node</span> <span style="color: #009900;">{</span>
+    <span style="color: #666666; font-style: italic;">//"cached" index of this node in the list and the modCount when it was set..</span>
+    <span style="color: #000000; font-weight: bold;">private</span> <span style="color: #006600; font-weight: bold;">int</span> indexInList<span style="color: #339933;">;</span>
+    <span style="color: #000000; font-weight: bold;">private</span> <span style="color: #006600; font-weight: bold;">int</span> modCountWhenIndexSet<span style="color: #339933;">;</span>
+&nbsp;
+    <span style="color: #666666; font-style: italic;">//Constructs a new Node object which should be positioned at the</span>
+    <span style="color: #666666; font-style: italic;">//given index when inserted into the tree..</span>
+    UnsortedNode<span style="color: #009900;">(</span>T obj, <span style="color: #006600; font-weight: bold;">int</span> initialIndex<span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+        <span style="color: #000000; font-weight: bold;">super</span><span style="color: #009900;">(</span>obj<span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+        indexInList = initialIndex<span style="color: #339933;">;</span>
+        modCountWhenIndexSet = modCount<span style="color: #339933;">;</span>
+    <span style="color: #009900;">}</span>
+    ...</pre></div></div><p>Note that each <code>UnsortedNode</code> stores its index in the list itself; which is what is used when comparing them. However, the problem is that each time an element is added or removed from the list, this value might become out of date.  These index values can’t be kept up to date all the time because that would require linear time when inserting or removing (which is what happens in a regular list).  To tell whether the value is out of date or not, the list also stores the <code>modcount</code> at the time the index variable is set, this variable is incremented each time the list is altered (see <a href="http://download.oracle.com/javase/6/docs/api/java/util/AbstractList.html"><code>AbstractList</code></a>, which is the subclass of <code>SortedList</code>).</p><p>The code to get the correct index for a given <code>UnsortedNode</code> is the only tricky bit.  This works by first figuring out the correct index for the parent node (if there is one) and uses the fact that each node knows the size of the sub-tree rooted at that point (i.e. the number of elements in the whole list is the size of the sub-tree rooted at the root node).  The code for the method looks like this:</p><div class="wp_syntax"><table><tr><td class="line_numbers"><pre>1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+</pre></td><td class="code"><pre class="java5" style="font-family: monospace;"><span style="color: #000000; font-weight: bold;">private</span> <span style="color: #006600; font-weight: bold;">int</span> getIndexInList<span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+    <span style="color: #666666; font-style: italic;">//go up the tree till we find a fresh parent or get to the root and store the path on a stack..</span>
+    <span style="color: #003399; font-weight: bold;">LinkedList</span><span style="color: #339933;">&lt;</span>UnsortedNode<span style="color: #339933;">&gt;</span> path = <span style="color: #000000; font-weight: bold;">new</span> <span style="color: #003399; font-weight: bold;">LinkedList</span><span style="color: #339933;">&lt;</span>UnsortedNode<span style="color: #339933;">&gt;</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+    UnsortedNode current = <span style="color: #000000; font-weight: bold;">this</span><span style="color: #339933;">;</span>
+    <span style="color: #000000; font-weight: bold;">while</span><span style="color: #009900;">(</span>current <span style="color: #339933;">!</span>= <span style="color: #006600; font-weight: bold;">null</span> <span style="color: #339933;">&amp;&amp;</span> current.<span style="color: #006633;">modCountWhenIndexSet</span> <span style="color: #339933;">!</span>= modCount<span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+        path.<span style="color: #006633;">push</span><span style="color: #009900;">(</span>current<span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+        current = <span style="color: #009900;">(</span>UnsortedNode<span style="color: #009900;">)</span> current.<span style="color: #006633;">getParent</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+    <span style="color: #009900;">}</span>
+    <span style="color: #666666; font-style: italic;">//pop elements off the stack updating them as you go..</span>
+    <span style="color: #000000; font-weight: bold;">while</span><span style="color: #009900;">(</span><span style="color: #339933;">!</span>path.<span style="color: #006633;">isEmpty</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+        current = path.<span style="color: #006633;">pop</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+        UnsortedNode parent = <span style="color: #009900;">(</span>UnsortedNode<span style="color: #009900;">)</span> current.<span style="color: #006633;">getParent</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">//parent is fresh or null..</span>
+        <span style="color: #000000; font-weight: bold;">if</span><span style="color: #009900;">(</span>parent == <span style="color: #006600; font-weight: bold;">null</span><span style="color: #009900;">)</span><span style="color: #009900;">{</span> <span style="color: #666666; font-style: italic;">//root case..</span>
+            <span style="color: #003399; font-weight: bold;">Node</span> leftChild = current.<span style="color: #006633;">getLeftChild</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+            current.<span style="color: #006633;">indexInList</span> = <span style="color: #009900;">(</span>leftChild == <span style="color: #006600; font-weight: bold;">null</span><span style="color: #009900;">)</span> <span style="color: #339933;">?</span> <span style="color: #cc66cc;">0</span> : leftChild.<span style="color: #006633;">sizeOfSubTree</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+        <span style="color: #009900;">}</span> <span style="color: #000000; font-weight: bold;">else</span> <span style="color: #009900;">{</span> <span style="color: #666666; font-style: italic;">//non-root case..</span>
+            <span style="color: #000000; font-weight: bold;">if</span><span style="color: #009900;">(</span>current.<span style="color: #006633;">isLeftChildOfParent</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+                <span style="color: #003399; font-weight: bold;">Node</span> rightChild = current.<span style="color: #006633;">getRightChild</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+                current.<span style="color: #006633;">indexInList</span> = parent.<span style="color: #006633;">indexInList</span> - <span style="color: #009900;">(</span>rightChild == <span style="color: #006600; font-weight: bold;">null</span> <span style="color: #339933;">?</span> <span style="color: #cc66cc;">1</span> : <span style="color: #cc66cc;">1</span> + rightChild.<span style="color: #006633;">sizeOfSubTree</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+            <span style="color: #009900;">}</span> <span style="color: #000000; font-weight: bold;">else</span> <span style="color: #009900;">{</span> <span style="color: #666666; font-style: italic;">//current is right child of parent case..</span>
+                <span style="color: #003399; font-weight: bold;">Node</span> leftChild = current.<span style="color: #006633;">getLeftChild</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+                current.<span style="color: #006633;">indexInList</span> = parent.<span style="color: #006633;">indexInList</span> + <span style="color: #009900;">(</span>leftChild == <span style="color: #006600; font-weight: bold;">null</span> <span style="color: #339933;">?</span> <span style="color: #cc66cc;">1</span> : <span style="color: #cc66cc;">1</span> + leftChild.<span style="color: #006633;">sizeOfSubTree</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+            <span style="color: #009900;">}</span>
+       <span style="color: #009900;">}</span>
+       <span style="color: #666666; font-style: italic;">//register it as being fresh..</span>
+       current.<span style="color: #006633;">modCountWhenIndexSet</span> = modCount<span style="color: #339933;">;</span>
+    <span style="color: #009900;">}</span>
+    <span style="color: #666666; font-style: italic;">//on the last iteration of the above loop this is set correctly..</span>
+    <span style="color: #000000; font-weight: bold;">return</span> indexInList<span style="color: #339933;">;</span>
+<span style="color: #009900;">}</span></pre></td></tr></table></div><p>The code is complicated by the fact that it uses iteration over recursion for efficiency.  It works by simply returning the cached value if it’s fresh and otherwise calculating it from it’s closest “fresh” ancestor.  The important lines in this method, where the actual calculation of the index takes place, are 15, 19 and 22.  Each deals with one of the three possible cases: when the node is the root, when it’s the left child of its parent and when it’s the right child of its parent respectively.</p><p>The runtime of the above method is actually constant when it’s being used in the program.  This is because the <code>Node</code> class’s <code>sizeOfSubTree</code> method takes constant time and when it’s called within the program, the parent node is always either null or fresh.  This is due to the fact that it’s only called in the <code>UnsortedNode</code>‘s <code>compare</code> method which in turn is only called when the tree is searching for an element.  These searches (like all binary tree searches) work from the root down; so when the <code>compare</code> method is called on a non-root node, it must be that it was just called on its parent node.</p><p>With the ability to get the index of each <code>UnsortedNode</code> in place, it’s fairly straight forward to implement the required <code>compare</code> method.  The code for this method look like this:</p><div class="wp_syntax"><div class="code"><pre class="java5" style="font-family: monospace;"><span style="color: #666666; font-style: italic;">//Determines whether this node is actually in the tree already..</span>
+<span style="color: #000000; font-weight: bold;">private</span> <span style="color: #006600; font-weight: bold;">boolean</span> isInTree<span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+    <span style="color: #000000; font-weight: bold;">return</span> getParent<span style="color: #009900;">(</span><span style="color: #009900;">)</span> <span style="color: #339933;">!</span>= <span style="color: #006600; font-weight: bold;">null</span> || getRoot<span style="color: #009900;">(</span><span style="color: #009900;">)</span> == <span style="color: #000000; font-weight: bold;">this</span><span style="color: #339933;">;</span>
+<span style="color: #009900;">}</span>
+&nbsp;
+<span style="color: #000000; font-weight: bold;">public</span> <span style="color: #006600; font-weight: bold;">int</span> compareTo<span style="color: #009900;">(</span><span style="color: #003399; font-weight: bold;">Node</span> other<span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+    UnsortedNode otherUS = <span style="color: #009900;">(</span>UnsortedNode<span style="color: #009900;">)</span> other<span style="color: #339933;">;</span>
+    <span style="color: #006600; font-weight: bold;">int</span> cmp = getIndexInList<span style="color: #009900;">(</span><span style="color: #009900;">)</span> - otherUS.<span style="color: #006633;">getIndexInList</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #339933;">;</span>
+    <span style="color: #000000; font-weight: bold;">if</span><span style="color: #009900;">(</span>cmp == <span style="color: #cc66cc;">0</span><span style="color: #009900;">)</span><span style="color: #009900;">{</span> <span style="color: #666666; font-style: italic;">//indices are equal..</span>
+        <span style="color: #000000; font-weight: bold;">if</span><span style="color: #009900;">(</span>isInTree<span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+            <span style="color: #000000; font-weight: bold;">if</span><span style="color: #009900;">(</span><span style="color: #339933;">!</span>otherUS.<span style="color: #006633;">isInTree</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+                cmp = <span style="color: #cc66cc;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">//treat this as larger..</span>
+            <span style="color: #009900;">}</span>
+        <span style="color: #009900;">}</span> <span style="color: #000000; font-weight: bold;">else</span> <span style="color: #009900;">{</span>
+            <span style="color: #000000; font-weight: bold;">if</span><span style="color: #009900;">(</span>otherUS.<span style="color: #006633;">isInTree</span><span style="color: #009900;">(</span><span style="color: #009900;">)</span><span style="color: #009900;">)</span><span style="color: #009900;">{</span>
+                cmp = -<span style="color: #cc66cc;">1</span><span style="color: #339933;">;</span> <span style="color: #666666; font-style: italic;">//treat this as smaller..</span>
+            <span style="color: #009900;">}</span>
+        <span style="color: #009900;">}</span>
+    <span style="color: #009900;">}</span>
+    <span style="color: #000000; font-weight: bold;">return</span> cmp<span style="color: #339933;">;</span>
+<span style="color: #009900;">}</span></pre></div></div><p>This method essentially just returns the difference in the indices of the nodes; the only slight complication is that nodes that are already in the tree need to be considered as smaller than those already in the list with the same index.  This is so that if you insert an element at some given index in the middle of the list, the newly added element gets the required index and the element that was at that index previously is moved up.</p><p>That’s pretty much it, the only other methods that are required to be overridden in the <code>UnsortedList</code> class are straight forward.  These are the <code>add</code> method (so that the <code>UnsortedNode</code> class is used instead of the base <code>Node</code> class), and the <code>contains</code> and <code>remove(Object)</code> methods (since these use binary search, which doesn’t work in an <code>UnsortedList</code>!).</p><p><strong>Performance</strong><br />
+I’ve tested the <code>UnsortedList</code> empirically and the results are as you’d expect; the performance is vastly better than the <code>ArrayList</code> when elements need to be added and/or removed from arbitrary positions in the list; however, it’s not as quick or as memory efficient in carrying out other operations.  The asymptotic running times for various operations across the different list implementations are given below:</p><table class="blogTable">
+<thead>
+<tr>
+<th></th>
+<th colspan="3" style="text-align: center;">Adding To By Index</th>
+<th colspan="3" style="text-align: center;">Removing From By Index</th>
+<th></th>
+</tr>
+<tr>
+<th></th>
+<th>Front</th>
+<th>Middle</th>
+<th>End</th>
+<th>Front</th>
+<th>Middle</th>
+<th>End</th>
+<th>Get by Index</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LinkedList</td>
+<td>O(1)</td>
+<td>O(n)</td>
+<td>O(1)</td>
+<td>O(1)</td>
+<td>O(n)</td>
+<td>O(1)</td>
+<td>O(n)</td>
+</tr>
+<tr>
+<td>ArrayList/Vector</td>
+<td>O(n)</td>
+<td>O(n)</td>
+<td>O(1)*</td>
+<td>O(n)</td>
+<td>O(n)</td>
+<td>O(1)*</td>
+<td>O(1)</td>
+</tr>
+<tr>
+<td>UnsortedList</td>
+<td>O(log(n))</td>
+<td>O(log(n))</td>
+<td>O(log(n))</td>
+<td>O(log(n))</td>
+<td>O(log(n))</td>
+<td>O(log(n))</td>
+<td>O(log(n))</td>
+</tr>
+<tr>
+<td colspan="8"><em>(* amortized constant time – running the method n times takes O(n) time).</em></td>
+</tr>
+</tbody>
+</table><p>I’ve written a number of unit tests for both the <code>UnsortedList</code> and <code>SortedList</code> classes, the source for which is included in: <a href="http://www.scottlogic.co.uk/wp-content/uploads/2011/04/mr-scottlogic-utils-1.01.zip">mr-scottlogic-utils.zip</a>.  If you spot a bug not covered in the unit tests let me know!</p><p>In the next post I’ll show how to adapt this data structure to improve the runtime of all the method in the above table.</p></div>
