@@ -15,32 +15,28 @@ title: Scott Logic &raquo; Blog
 
       <p class="small">{{ page.author }}, {{ page.date | date: "%B %d, %Y" }}</p>
 
-      <p>{{ page.content }}</p>
+      <p>{{ page.content | strip_html | truncatewords: 50 }}</p>
 
-      <p class="postmetadata">
-        Tags:
-        {% for tag in page.tags %}
-        <a rel="tag">{{ tag }}</a>{% if !forloop.last %}, {% endif %}
-        {% endfor %}
-        <br>
-        <a href="{{ site.url }}{{ page.url }}#comments">n Comments &raquo;</a></p>
-    </div>
-    <hr/>
-    {% endfor %}
-    <div>
-      <div class="alignleft">
-        {% if paginator.next_page %}
-        <a href="{{ site.url }}/page{{paginator.next_page}}">&laquo; Older Entries</a>
-        {% endif %}
-      </div>
-      <div class="alignright">
-        {% if paginator.previous_page %}
-        {% if paginator.previous_page == 1 %}
-        <a href="{{ site.url }}/">Newer Entries &raquo;</a>
-        {% else %}
-        <a href="{{ site.url }}/page{{paginator.previous_page}}">Newer Entries &raquo;</a>
-        {% endif %}
-        {% endif %}
+      <p class="read_more">
+        <a href="{{ site.url }}{{ page.url }}">Read More</a>
+      </p>
+      <hr/>
+      {% endfor %}
+      <div>
+        <div class="alignleft">
+          {% if paginator.next_page %}
+          <a href="{{ site.url }}/page{{paginator.next_page}}">&laquo; Older Entries</a>
+          {% endif %}
+        </div>
+        <div class="alignright">
+          {% if paginator.previous_page %}
+          {% if paginator.previous_page == 1 %}
+          <a href="{{ site.url }}/">Newer Entries &raquo;</a>
+          {% else %}
+          <a href="{{ site.url }}/page{{paginator.previous_page}}">Newer Entries &raquo;</a>
+          {% endif %}
+          {% endif %}
+        </div>
       </div>
     </div>
   </div>
