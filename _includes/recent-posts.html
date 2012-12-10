@@ -2,12 +2,26 @@
 {% assign posts = site.categories[category] %}
 {% assign count = posts | size %}
 {% if count > 2 %}
-<div class="widget"><h4>My Recent Posts</h4>
-
-  <ul>
-    {% for post in posts limit: 5 %}
-    <li><a href="{{ site.url }}{{ post.url }}">{{ post.title }}</a></li>
-    {% endfor %}
-  </ul>
+<div class="mod sidebar nugget menu">
+  <b class="top">
+    <b class="tl"></b>
+    <b class="tr"></b>
+  </b>
+  <div class="inner">
+    <div class="hd">
+      <h3>My Recent Posts</h3>
+    </div>
+    <div class="bd">
+      <ul>
+        {% for post in posts limit: 5 %}
+        <li><a href="{{ site.url }}{{ post.url }}">{{ post.title }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  <b class="bottom">
+    <b class="bl"></b>
+    <b class="br"></b>
+  </b>
 </div>
 {% endif %}

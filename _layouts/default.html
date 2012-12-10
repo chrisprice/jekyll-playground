@@ -1,58 +1,93 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="en-US">
-<head profile="http://gmpg.org/xfn/11">
-  <title>{{ page.title }}</title>
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-  <style type="text/css" media="all">@import "http://www.scottlogic.co.uk/wp-content/themes/sl2010/styles/preview_rotator.css";</style>
-  <style type="text/css" media="all">@import "http://www.scottlogic.co.uk/wp-content/themes/sl2010/styles/aggregator.css";</style>
-  <style type="text/css" media="all">@import "http://www.scottlogic.co.uk/wp-content/themes/sl2010/styles/node.css";</style>
-  <style type="text/css" media="all">@import "http://www.scottlogic.co.uk/wp-content/themes/sl2010/styles/defaults.css";</style>
-  <style type="text/css" media="all">@import "http://www.scottlogic.co.uk/wp-content/themes/sl2010/styles/system.css";</style>
-  <style type="text/css" media="all">@import "http://www.scottlogic.co.uk/wp-content/themes/sl2010/styles/user.css";</style>
-  <style type="text/css" media="all">@import "http://www.scottlogic.co.uk/wp-content/themes/sl2010/styles/style.css";</style>
-  <style type="text/css" media="print">@import "http://www.scottlogic.co.uk/wp-content/themes/sl2010/styles/print.css";</style>
-  <style type="text/css" media="all">@import "http://www.scottlogic.co.uk/wp-content/themes/sl2010/styles/menu.css";</style>
-  <!--[if IE 6]><style type="text/css" media="all">@import "http://www.scottlogic.co.uk/wp-content/themes/sl2010/styles/ie6.css";</style><![endif]-->
-  <!--[if IE]><style type="text/css" media="all">@import "http://www.scottlogic.co.uk/wp-content/themes/sl2010/styles/ie.css";</style><![endif]-->
-  <style type="text/css" media="all">@import "http://www.scottlogic.co.uk/wp-content/themes/sl2010/style.css";</style>
-  <link rel="shortcut icon" href="http://www.scottlogic.co.uk/wp-content/themes/sl2010/images/favicon.ico" type="image/x-icon" />
-  <script type="text/javascript" src="http://www.scottlogic.co.uk/wp-content/themes/sl2010/js/jquery.js"></script>
-  <script type="text/javascript" src="http://www.scottlogic.co.uk/wp-content/themes/sl2010/js/preview_rotator.js"></script>
-  <script type="text/javascript" src="http://www.scottlogic.co.uk/wp-content/themes/sl2010/js/menu.js"></script>
-  <script type="text/javascript" src="http://www.scottlogic.co.uk/wp-content/themes/sl2010/js/swfobject.js"></script>
-  <link rel='stylesheet' id='jetpack-widgets-css'  href='http://www.scottlogic.co.uk/blog/colin/wp-content/plugins/jetpack/modules/widgets/widgets.css?ver=20121003' type='text/css' media='all' />
-  <link rel='stylesheet' id='wp-syntax-css-css'  href='http://www.scottlogic.co.uk/blog/colin/wp-content/plugins/wp-syntax/wp-syntax.css?ver=3.4.2' type='text/css' media='all' />
-  <style type="text/css">.recentcomments a{display:inline !important;padding:0 !important;margin:0 !important;}</style>
-</head>
-<body class="sidebar-right type_page">
-<div id="all">
-<div id="header">
-  <div id="banner">
-    <div id="navigation">
-      <ul>
-        <li><a href="http://www.scottlogic.co.uk/" title="Home" accesskey="1">Home</a></li>
-        <li><a href="http://www.scottlogic.co.uk/about_us/" title="About Us" accesskey="2">About Us</a></li>
-        <li><a href="http://www.scottlogic.co.uk/services/" title="Services" accesskey="3">Services</a></li>
-        <li><a href="http://www.scottlogic.co.uk/careers/" title="Careers" accesskey="4">Careers</a></li>
-        <li><a href="http://www.scottlogic.co.uk/graduate-careers/" title="Graduates" accesskey="5">Graduates</a></li>
-        <li><a href="http://www.scottlogic.co.uk/press_room/" title="Press Room" accesskey="6">Press Room</a></li>
-        <li class="selected"><a href="{{ site.url }}/" title="Blog" accesskey="7">Blog</a></li>
-        <li><a href="http://www.scottlogic.co.uk/contact-us/" title="Contact Us" accesskey="8">Contact Us</a></li>
-        <ul>
-        </ul>
+<!doctype html>
+<!--[if lt IE 7]>  <html class="no-js  ie      ie6 lte9 lte8 lte7    " lang="en"> <![endif]-->
+<!--[if IE 7]>     <html class="no-js  ie nie6 ie7 lte9 lte8 lte7    " lang="en"> <![endif]-->
+<!--[if IE 8]>     <html class="no-js  ie nie6 ie8 lte9 lte8         " lang="en"> <![endif]-->
+<!--[if IE 9]>     <html class="no-js  ie nie6 ie9 lte9              " lang="en"> <![endif]-->
+<!--[if gt IE 9]>  <html class="no-js nie nie6                       " lang="en"> <![endif]-->
+<!--[if !IE]><!--> <html class="no-js nie nie6                       " lang="en"> <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Scott Logic &raquo; {{ page.title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="shortcut icon" href="http://www.scottlogic.co.uk/wp-content/themes/scottlogic/img/favicon.ico">
+  <link rel="apple-touch-icon" href="http://www.scottlogic.co.uk/wp-content/themes/scottlogic/img/apple-touch-icon.png">
+  <link rel="stylesheet" href="http://www.scottlogic.co.uk/wp-content/themes/scottlogic/style.css">
+  <link rel="alternate" type="application/rss+xml" title="Scott Logic RSS Feed" href="http://www.scottlogic.co.uk/feed/">
+  <link rel="alternate" type="application/atom+xml" title="Scott Logic Atom Feed" href="http://www.scottlogic.co.uk/feed/atom/">
+  <link rel="pingback" href="http://www.scottlogic.co.uk/xmlrpc.php">
+  <link rel='stylesheet' id='contact-form-7-css'  href='http://www.scottlogic.co.uk/wp-content/plugins/contact-form-7/styles.css?ver=3.0' type='text/css' media='all' />
+  <script type='text/javascript' src='http://www.scottlogic.co.uk/wp-includes/js/l10n.js?ver=20101110'></script>
+  <script type='text/javascript' src='http://www.scottlogic.co.uk/wp-content/themes/scottlogic/js/swfobject.min.js?ver=3.2.1'></script>
+  <script type='text/javascript' src='http://www.scottlogic.co.uk/wp-content/themes/scottlogic/js/jquery-1.6.2.min.js?ver=3.2.1'></script>
+  <script type='text/javascript' src='http://www.scottlogic.co.uk/wp-content/themes/scottlogic/js/jquery-ui-1.8.16.custom.min.js?ver=3.2.1'></script>
+  <script type='text/javascript' src='http://www.scottlogic.co.uk/wp-content/themes/scottlogic/js/market-overview-widget.js?ver=3.2.1'></script>
+  <script type='text/javascript' src='http://www.scottlogic.co.uk/wp-content/themes/scottlogic/js/decoration.js?ver=3.2.1'></script>
 
-      </ul>				</div>
-    <h1><a href="/" title="Home"><img src="http://www.scottlogic.co.uk/wp-content/themes/sl2010/images/bannerlogo2010.png" width="238px" height="71px" alt="Scott Logic Ltd" /></a></h1>
+  <script type="text/javascript" charset="utf-8">
+
+    /**
+     * Courtesy of Kimili Flash Embed - Version 2.2
+     * by Michael Bester - http://kimili.com
+     */
+
+    (function(){
+      try {
+        // Disabling SWFObject's Autohide feature
+        if (typeof swfobject.switchOffAutoHideShow === "function") {
+          swfobject.switchOffAutoHideShow();
+        }
+      } catch(e) {}
+    })();
+  </script>
+
+  <link rel="stylesheet" href="http://www.scottlogic.co.uk/wp-content/plugins/wp-syntax/wp-syntax.css" type="text/css" media="screen" />
+</head><body>
+<div class="pagehead">
+  <div class="inner">
+    <ul class="menu">
+      <li><a href="http://www.scottlogic.co.uk/" title="Home" accesskey="1">Home</a></li>
+      <li><a href="http://www.scottlogic.co.uk/about/" title="About" accesskey="2">About</a></li>
+      <li><a href="http://www.scottlogic.co.uk/services/" title="Services" accesskey="3">Services</a></li>
+      <li><a href="http://www.scottlogic.co.uk/careers/" title="Careers" accesskey="4">Careers</a></li>
+      <li><a href="http://www.scottlogic.co.uk/graduate-careers/" title="Graduates" accesskey="5">Graduates</a></li>
+      <li><a href="http://www.scottlogic.co.uk/news/" title="News" accesskey="6">News</a></li>
+      <li><a href="http://www.scottlogic.co.uk/labs/" title="Labs" accesskey="7">Labs</a></li>
+      <li class="selected"><a href="{{ site.url }}" title="Blog" accesskey="8">Blog</a></li>
+      <li><a href="http://www.scottlogic.co.uk/contact/" title="Contact" accesskey="9">Contact</a></li>
+    </ul>
+    <h1><a href="http://www.scottlogic.co.uk/" title="Home"><img src="http://www.scottlogic.co.uk/wp-content/themes/scottlogic/img/bannerlogo2010.png" width="238" height="71" alt="Scott Logic Ltd" /></a></h1>
   </div>
 </div>
-<div id="container">
-<div id="main">
-  {{ content }}
+<div class="page">
+  <div class="head"><h1>
+    <div class="breadcrumb">
+      <p class="small">
+        <a href="http://www.scottlogic.co.uk/">Home</a>
+        &gt; <a href="{{ site.url }}">Blog</a>
+        {% if page.author %}
+        &gt; <a href="{{ site.url }}{{ page.categories[0] }}/">{{ page.author }}</a>
+        {% endif %}
+      </p>
+    </div>
+    {{ page.title }}</h1>
+  </div>
+  <div class="body">
+    {{ content }}
+  </div>
+  <div class="foot">
+    <div class="inner">
+      <p>&copy; 2012 Scott Logic Ltd. All Rights Reserved.</p>
+    </div>
+  </div>
 </div>
-<div id="footer">
-  <p>&copy; 2012 Scott Logic Ltd. All Rights Reserved&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;<a href="{{ site.url }}/termsofuse">Terms of Use</a>&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;<a href="{{ site.url }}/contact-us">Contact Us</a></p>
-</div>
-</div>
-</div>
+<script type='text/javascript' src='http://www.scottlogic.co.uk/wp-content/plugins/contact-form-7/jquery.form.js?ver=2.52'></script>
+<script type='text/javascript' src='http://www.scottlogic.co.uk/wp-content/plugins/contact-form-7/scripts.js?ver=3.0'></script>
+<script>
+  var _gaq=[["_setAccount","UA-262131-1"],["_trackPageview"]];
+  (function(d,t){var g=d.createElement(t),s=d.getElementsByTagName(t)[0];g.async=1;
+    g.src=("https:"==location.protocol?"//ssl":"//www")+".google-analytics.com/ga.js";
+    s.parentNode.insertBefore(g,s)}(document,"script"));
+  _gaq.push(['_setCustomVar', 1, 'Silverlight Support', getSilverlightVersion(), 1]);
+</script>
 </body>
 </html>

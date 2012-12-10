@@ -1,23 +1,12 @@
 ---
 layout: default
 ---
-<div id="titlebar">
-  <div id="pagetitle"><h1>{{ page.title }}</h1></div>
-  <div id="breadcrumb">
-    <p class="breadcrumb"><a href="http://www.scottlogic.co.uk/">Home</a> &gt; <a href="{{ site.url }}/">Blog</a> &gt;
-      <a href="{{ site.url }}/{{ page.categories[0] }}/">{{ page.author }}</a></p>
-  </div>
-</div>
-<div class="sidebar">
-  {% include colineberhardt-followme.html %}
-  {% include colineberhardt-license.html %}
+<div class="sidebar leftCol"></div>
+<div class="sidebar rightCol">
   {% include recent-posts.html %}
+  {% include cc-license.html %}
 </div>
-<div id="center" class="blogcontent">
-  <div class="content">
-    <div class="post">
-      {{ content }}
-    </div>
-  </div>
-  <div class="clear-block clear"></div>
+<div class="main">
+  <p class="small">{{ page.author }}, {{ page.date | date: "%B %d, %Y" }}</p>
+  {{ content }}
 </div>

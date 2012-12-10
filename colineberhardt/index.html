@@ -1,13 +1,14 @@
 ---
 layout: default
-title: Scott Logic &raquo; Blog &raquo; Colin Eberhardt
+title: Colin Eberhardt
 ---
-<div id="titlebar">
-  <div id="pagetitle"><h1>Colin Eberhardt</h1></div>
+<div class="sidebar leftCol"></div>
+<div class="sidebar rightCol">
+  {% include author-list.html %}
+  {% include cc-license.html %}
 </div>
-<div id="center" class="blogcontent">
+<div class="main">
   {% assign latest = site.categories.colineberhardt[0] %}
   <a href="{{ site.url }}{{ latest.url }}">{{ latest.title }}</a>
-  <div class="clear-block clear"></div>
 </div>
 

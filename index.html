@@ -1,45 +1,38 @@
 ---
 layout: default
-title: Scott Logic &raquo; Blog
+title: Blog
 ---
-<div id="titlebar">
-  <div id="pagetitle"><h1>Blog</h1></div>
+<div class="sidebar leftCol"></div>
+<div class="sidebar rightCol">
+  {% include author-list.html %}
 </div>
-<div id="center" class="blogcontent">
-  <div class="content">
-    {% for page in paginator.posts %}
-    <div class="item">
-      <h3>
-        <a href="{{ site.url }}{{ page.url }}">{{ page.title }}</a>
-      </h3>
+<div class="main">
+  {% for page in paginator.posts %}
+  <div class="item">
+    <h3>
+      <a href="{{ site.url }}{{ page.url }}">{{ page.title }}</a>
+    </h3>
 
-      <p class="small">{{ page.author }}, {{ page.date | date: "%B %d, %Y" }}</p>
+    <p class="small">{{ page.author }}, {{ page.date | date: "%B %d, %Y" }}</p>
 
-      <p>{{ page.content | strip_html | truncatewords: 50 }}</p>
+    <p>{{ page.content | strip_html | truncatewords: 50 }}</p>
 
-      <p class="read_more">
-        <a href="{{ site.url }}{{ page.url }}">Read More</a>
-      </p>
-      <hr/>
-      {% endfor %}
-      <div>
-        <div class="alignleft">
-          {% if paginator.next_page %}
-          <a href="{{ site.url }}/page{{paginator.next_page}}">&laquo; Older Entries</a>
-          {% endif %}
-        </div>
-        <div class="alignright">
-          {% if paginator.previous_page %}
-          {% if paginator.previous_page == 1 %}
-          <a href="{{ site.url }}/">Newer Entries &raquo;</a>
-          {% else %}
-          <a href="{{ site.url }}/page{{paginator.previous_page}}">Newer Entries &raquo;</a>
-          {% endif %}
-          {% endif %}
-        </div>
-      </div>
-    </div>
+    <p class="read_more">
+      <a href="{{ site.url }}{{ page.url }}">Read More</a>
+    </p>
+    <hr/>
+    {% endfor %}
+    <p class="pager">
+      {% if paginator.previous_page %}
+      <a href="{{ site.url }}{% if paginator.previous_page != 1 %}page{{ paginator.previous_page }}{% endif %}">&laquo; Previous Page</a>
+      {% endif %}
+      {% if paginator.next_page %}{% if paginator.previous_page %}
+        -
+      {% endif %}{% endif %}
+      {% if paginator.next_page %}
+      <a href="{{ site.url }}page{{ paginator.next_page }}">Next Page &raquo;</a>
+      {% endif %}
+    </p>
   </div>
-  <div class="clear-block clear"></div>
 </div>
 
