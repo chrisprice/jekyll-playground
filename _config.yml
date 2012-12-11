@@ -1,3 +1,4 @@
-baseurl: /jekyll-playground
-paginate: 3
+paginate: 10
+name: Scott Logic
+description: Financial Software Development
 url: http://chrisprice.github.com/jekyll-playground/
