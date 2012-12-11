@@ -1,4 +1,7 @@
+baseurl: /
 paginate: 10
 name: Scott Logic
 description: Financial Software Development
 url: http://chrisprice.github.com/jekyll-playground/
+disqus-site-url: http://chrisprice.github.com/jekyll-playground/
+debug: false

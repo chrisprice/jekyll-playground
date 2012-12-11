@@ -17,6 +17,10 @@ title: Blog
 
     <p>{{ page.content | strip_html | truncatewords: 50 }}</p>
 
+    <p class="small">
+      <a href="{{ site.url }}{{ page.url }}#disqus_thread">Comments</a>
+    </p>
+
     <p class="read_more">
       <a href="{{ site.url }}{{ page.url }}">Read More</a>
     </p>
