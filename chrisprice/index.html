@@ -1,13 +1,58 @@
 ---
 layout: default
 title: Chris Price
+categories: [chrisprice]
 ---
 <div class="sidebar leftCol"></div>
 <div class="sidebar rightCol">
   {% include author-list.html %}
+  {% include recent-posts.html %}
 </div>
 <div class="main">
+  <div class="mod sidebar nugget menu">
+    <b class="top">
+      <b class="tl"></b>
+      <b class="tr"></b>
+    </b>
+
+    <div class="inner">
+      <div class="hd">
+        <h3>About Me</h3>
+      </div>
+      <div class="bd">
+        <p>
+          <a href="{{ site.url }}chrisprice/feed.xml">
+            <img style="vertical-align:middle;" src="http://faq.files.wordpress.com/2006/11/c141.png" alt="RSS"> RSS feed
+          </a>
+        </p>
+        <p>
+          <a href="mailto:cprice@scottlogic.co.uk">
+            <img style="vertical-align:middle;" src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2011/01/at_symbol.gif"> cprice@scottlogic.co.uk
+          </a>
+        </p>
+        <p>
+          <a href="http://twitter.com/100pxls">
+            <img style="vertical-align:middle;" src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2011/01/twitter_icon.png"> @100pxls
+          </a>
+        </p>
+        <p>
+          <a href="https://plus.google.com/u/0/104181672098184856535" rel="author">
+            <img style="vertical-align:middle;" src="http://www.scottlogic.co.uk/blog/colin/wp-content/uploads/2012/07/google-plus-red-14.png"> Chris Price
+          </a>
+        </p>
+      </div>
+    </div>
+    <b class="bottom">
+      <b class="bl"></b>
+      <b class="br"></b>
+    </b>
+  </div>
+  <p>
+
+  </p>
   {% assign latest = site.categories.chrisprice[0] %}
-  <a href="{{ site.url }}{{ latest.url }}">{{ latest.title }}</a>
+  <h1><a href="{{ site.url }}{{ latest.url }}">{{ latest.title }}</a></h1>
+  <p class="small">{{ latest.author }}, {{ latest.date | date: "%B %d, %Y" }}</p>
+  {{ latest.content }}
 </div>
 
