@@ -1,6 +1,7 @@
 ---
 layout: blog
 author: Chris Price
+title: Jekyll - A Developer's Wordpress?
 ---
 ## *Outrageous pun intentionally... hyde-n...*
 
