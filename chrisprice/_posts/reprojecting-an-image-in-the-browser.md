@@ -8,7 +8,14 @@ Intrieged, I fired up the dev tools to get a peek at what was going on. Expectin
 
 ##The Basics
 
-An educated guess would suggest to me that the final image is made up of 3 layers, a background, a reprojected version of the screenshot and an overlay. The background contains the bulk of the picture, with a blank spot where the screenshot will go. The screenshot needs reprojecting onto the device in the picture's screen's co-ordinate space (i.e. bent and squashed to fit on the screen) and then compositing on top. And that just leaves any glossy reflections or occlusions for the final overlay layer which is again composited on top. There's possibility also a separate mask layer, but for the sake of argument let's assume that's folded into the overlay.
+An educated guess would suggest to me that the final image is made up of 3 layers -
+* A background image contains the bulk of the picture, with a blank spot where the screenshot will go. 
+* A reprojected screenshot image onto the device in the picture's screen's co-ordinate space (i.e. bent and squashed to fit on the screen) 
+* And that just leaves any glossy reflections or occlusions for the final overlay layer which is again composited on top.
+
+_There's possibility also a separate mask layer, but for the sake of argument let's assume that's folded into the overlay._
+
+I'm going to assume everyone could think up a few different techniques for compositing the layers in a browser and skip to the juicy stuff of reprojecting the screenshot.
 
 ##2D Transforms and Triangles
 
@@ -16,6 +23,6 @@ An educated guess would suggest to me that the final image is made up of 3 layer
 
 ##Solving
 
-##Using with CSS3 Transforms
+##Reprojecting using CSS3 Transforms
 
-##Using in three.js
+##Reprojecting using WebGL/three.js
