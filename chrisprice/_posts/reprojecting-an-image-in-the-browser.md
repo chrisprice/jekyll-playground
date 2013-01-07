@@ -45,7 +45,7 @@ And then into reduced row echelon form
 
 The results can then be read off as x = 2, y = 3 and z = -1.
 
-So how do we implement this in code? Well there's always the pseudo-code on the Wikipedia article if you're feeling adventurous, and for the rest of us there are existing matrix libraries to do it for us. I opted for [Sylvester](http://sylvester.jcoglan.com/), checked out the API docs and found the [toRightTriangular method](http://sylvester.jcoglan.com/api/matrix.html#torighttriangular). Adapting the code given there to match the example above -
+So how do we implement this in code? Well there's always the pseudo-code on the Wikipedia article if you're feeling adventurous, I opted for an existing matrix libraries to do it for me [Sylvester](http://sylvester.jcoglan.com/). I checked out the API docs and found the [toRightTriangular method](http://sylvester.jcoglan.com/api/matrix.html#torighttriangular). Adapting the code given there to match the example above -
 
 ```
   var equations = $M([
@@ -64,7 +64,7 @@ So how do we implement this in code? Well there's always the pseudo-code on the 
   // 2, 3, -1
 ```
 
-We're close, all we need to do now is generalise the back-substitution step (the bit that gives us the reduced row echelon form) to support NxN matrices. Again if you're feeling adventurous the pattern should be obvious so feel free to get your algorithm on, while the rest of us hit Google up. I've taken inspiration from the [matrix solver by Stephen R. Schmitt](http://mysite.verizon.net/res148h4j/javascript/script_gauss_elimination3.html) and implemented a generalised back-substitution like so -
+We're close, all we need to do now is generalise the back-substitution step (the bit that gives us the reduced row echelon form) to support NxN matrices. Again if you're feeling adventurous the pattern should be obvious so feel free to get your algorithm on, I made for Google. I've taken inspiration from the [matrix solver by Stephen R. Schmitt](http://mysite.verizon.net/res148h4j/javascript/script_gauss_elimination3.html) and implemented a generalised back-substitution like so -
 
 ```
   var result = [], rowCount = eqns.rows();
@@ -108,5 +108,18 @@ Which we can apply directly to an element like so -
   matrix.m21 = t[1], matrix.m22 = t[4], matrix.m23 =    0, matrix.m24 = t[7];
   matrix.m31 =    0, matrix.m32 =    0, matrix.m33 =    1, matrix.m34 =    0;
   matrix.m41 = t[2], matrix.m42 = t[5], matrix.m43 =    0, matrix.m44 =    1;
-  document.getElementById('a').style.transform = matrix;
+  element.style.webkitTransform = matrix;
+```
+
+_I'm using a WebKit only class (and prefix) for brevity, you'll need to fall back to string concatenation for other browsers e.g. `"matrix3d(" + t[0].toFixed(x) + "," + ... + ")"`._
+
+
+Unfortunately that on it's own doesn't quite give the expected result -
+
+#BROKEN
+
+The problem is that the browser is taking the origin of the image to be at the center of the image but we've assumed the origin is in the top left of the image. Luckily, we can fix that with a little bit of `element.style.webkitTransformOrigin = "0 0"` to get the result we're after -
+
+#FIXED
+
 ##Reprojecting using WebGL/three.js
