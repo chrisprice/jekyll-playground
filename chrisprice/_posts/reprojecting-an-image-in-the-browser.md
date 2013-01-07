@@ -48,7 +48,7 @@ The results can then be read off as x = 2, y = 3 and z = -1.
 So how do we implement this in code? Well there's always the pseudo-code on the Wikipedia article if you're feeling adventurous, and for the rest of us there are existing matrix libraries to do it for us. I opted for [Sylvester](http://sylvester.jcoglan.com/), checked out the API docs and found the [toRightTriangular method](http://sylvester.jcoglan.com/api/matrix.html#torighttriangular). Adapting the code given there to match the example above -
 
 ```
-var equations = $M([
+  var equations = $M([
     [ 2,  1, -1,   8],
     [-3, -1,  2, -11],
     [-2,  1,  2,  -3]
@@ -59,6 +59,7 @@ var equations = $M([
   var sol_z = eqns.e(3,4) / eqns.e(3,3);
   var sol_y = (eqns.e(2,4) - eqns.e(2,3)*sol_z) / eqns.e(2,2);
   var sol_x = (eqns.e(1,4) - eqns.e(1,3)*sol_z - eqns.e(1,2)*sol_y) / eqns.e(1,1);
+  
   console.log(sol_x, sol_y, sol_z); 
   // 2, 3, -1
 ```
