@@ -118,7 +118,7 @@ Unfortunately that on it's own doesn't quite give the expected result -
 
 #BROKEN
 
-The problem is that the browser is taking the origin of the image to be at the center of the image but we've assumed the origin is in the top left of the image. Luckily, we can fix that with a little bit of `element.style.webkitTransformOrigin = "0 0"` to get the result we're after -
+The problem is that the browser is taking the origin of the image to be at the center of the image but when we computed the matrix we assumed the origin was in the top left of the image. Luckily, we can fix that with a little bit of `element.style.webkitTransformOrigin = "0 0"` to get the result we're after -
 
 #FIXED
 
