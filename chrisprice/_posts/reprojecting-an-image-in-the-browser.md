@@ -64,6 +64,22 @@ So how do we implement this in code? Well there's always the pseudo-code on the 
   // 2, 3, -1
 ```
 
+We're close, all we need to do now is generalise the back-substitution step (the bit that gives us the reduced row echelon form) to support NxN matrices. Again for the adventurous feel free to get your algorithm on while the rest of us hit Google up. I've taken inspiration from the [JavaScript matrix solver by Stephen R. Schmitt] and implemented a generalised back-substitution like so -
+
+```
+  var result = [], rowCount = eqns.rows();
+  for (var i = rowCount - 1; i >= 0; i--) {
+    var row = eqns.elements[i];
+    for (var sum = 0, j = i + 1; j < rowCount; j++) {
+      sum += row[j] * result[j];
+    }
+    result[i] = (row[rowCount] - sum) / row[i];
+  }
+
+  console.log(result); 
+  // [2, 3, -1]
+```
+
 ##Reprojecting using CSS3 Transforms
 
 ##Reprojecting using WebGL/three.js
