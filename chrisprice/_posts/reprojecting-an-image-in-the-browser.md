@@ -25,7 +25,7 @@ I'm going to assume everyone can think up a few different techniques for composi
 
 Unfortunately it's time for a bit of maths, but I'll try and keep it brief! We're trying to solve a linear system of simulataneous equations, so we can bring to bear some basic matrix techniques to make our lives easier. Specifically we're going to use [Gaussian elimination](http://en.wikipedia.org/wiki/Gaussian_elimination), followed by a bit of back-substitution.
 
-Here's the Gaussian elimination example from the Wikipedia article, here it's used on a 3x3 matrix but it's generalisable upto NxN -
+Here's the Gaussian elimination example from the Wikipedia article, this is a 3x3 matrix but it's generalisable upto NxN -
 
 The simultaneous equations
 
@@ -83,5 +83,7 @@ We're close, all we need to do now is generalise the back-substitution step (the
 So now we can combine our solver with the matrix from the previous section to create our reprojection matrix, but how do we actually go about using it?
 
 ##Reprojecting using CSS3 Transforms
+
+As we discovered earlier, a 2D transform matrix just isn't going to cut it, so we know we're going to need to use the matrix3d transform function.
 
 ##Reprojecting using WebGL/three.js
