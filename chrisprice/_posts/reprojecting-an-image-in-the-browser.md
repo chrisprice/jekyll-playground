@@ -82,6 +82,8 @@ We're close, all we need to do now is generalise the back-substitution step (the
 
 So now we can combine our solver with the matrix from the previous section to create our reprojection matrix, but how do we actually go about using it?
 
+_As is always the case once you know the right terms, finding the [generalised solution on Google](http://www.google.com/search?q=rectangle+to+quadrilateral+mapping) is trivial. If you want to implement this yourself, you may find it easier to use it rather than using the above technique._
+
 ##Reprojecting using CSS3 Transforms
 
 As we discovered earlier, a 2D transform matrix just isn't going to cut it, so we know we're going to need to use the [matrix3d transform function](https://developer.mozilla.org/en-US/docs/CSS/transform-function#matrix3d()). In order to make the reprojection matrix fit the format expected by the browser we'll pre-process the matrix in 2 ways -
