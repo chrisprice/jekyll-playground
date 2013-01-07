@@ -27,24 +27,23 @@ Unfortunately it's time for a bit of maths, but I'll try and keep it brief! We'r
 
 Here's the Gaussian elimination example from the Wikipedia article, here it's used on a 3x3 matrix but it's generalisable upto NxN -
 
-<table>
-<tr>
-<td>
-![Linear system of simulatenous equations](http://upload.wikimedia.org/math/a/f/0/af049b44d89484bcc6114dde940d4edc.png)
-</td>
-<td>
+The simultaneous equations
+
+![Linear system of simultaneous equations](http://upload.wikimedia.org/math/a/f/0/af049b44d89484bcc6114dde940d4edc.png)
+
+Turn into the augmented matrix
+
 ![Augmented matrix](http://upload.wikimedia.org/math/a/e/c/aec68ce94e1b6e1ff6ceec8b101fb1a8.png)
-</td>
-</tr>
-<tr>
-<td>
+
+Which can be converted into row echelon form
+
 ![Row echelon form](http://upload.wikimedia.org/math/b/5/c/b5c5821f745a153ecb193c7f329eaad5.png)
-</td>
-<td>
+
+And then into reduced row echelon form
+
 ![Reduced row echelon form](http://upload.wikimedia.org/math/f/2/9/f2981fd8dffb705698e90dbcfcea25d5.png)
-</td>
-</tr>
-</table>
+
+The results can then be read off as x = 2, y = 3 and z = -1.
 
 ##Reprojecting using CSS3 Transforms
 
