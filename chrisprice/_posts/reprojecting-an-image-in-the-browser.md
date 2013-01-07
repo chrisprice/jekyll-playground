@@ -49,17 +49,18 @@ So how do we implement this in code? Well there's always the pseudo-code on the 
 
 ```
 var equations = $M([
-  [ 2,  1, -1,   8],
-  [-3, -1,  2, -11],
-  [-2,  1,  2,  -3]
-]);
+    [ 2,  1, -1,   8],
+    [-3, -1,  2, -11],
+    [-2,  1,  2,  -3]
+  ]);
 
-var eqns = equations.toRightTriangular();
+  var eqns = equations.toRightTriangular();
 
-var sol_z = eqns.e(3,4) / eqns.e(3,3); // -1
-var sol_y = (eqns.e(2,4) - eqns.e(2,3)*sol_z) / eqns.e(2,2); // 3
-var sol_x = (eqns.e(1,4) - eqns.e(1,3)*sol_z - eqns.e(1,2)*sol_y) / eqns.e(1,1); // 2
-
+  var sol_z = eqns.e(3,4) / eqns.e(3,3);
+  var sol_y = (eqns.e(2,4) - eqns.e(2,3)*sol_z) / eqns.e(2,2);
+  var sol_x = (eqns.e(1,4) - eqns.e(1,3)*sol_z - eqns.e(1,2)*sol_y) / eqns.e(1,1);
+  console.log(sol_x, sol_y, sol_z); 
+  // 2, 3, -1
 ```
 
 ##Reprojecting using CSS3 Transforms
