@@ -64,7 +64,7 @@ So how do we implement this in code? Well there's always the pseudo-code on the 
   // 2, 3, -1
 ```
 
-We're close, all we need to do now is generalise the back-substitution step (the bit that gives us the reduced row echelon form) to support NxN matrices. Again for the adventurous feel free to get your algorithm on while the rest of us hit Google up. I've taken inspiration from the [JavaScript matrix solver by Stephen R. Schmitt] and implemented a generalised back-substitution like so -
+We're close, all we need to do now is generalise the back-substitution step (the bit that gives us the reduced row echelon form) to support NxN matrices. Again for the adventurous feel free to get your algorithm on while the rest of us hit Google up. I've taken inspiration from the [matrix solver by Stephen R. Schmitt](http://mysite.verizon.net/res148h4j/javascript/script_gauss_elimination3.html) and implemented a generalised back-substitution like so -
 
 ```
   var result = [], rowCount = eqns.rows();
