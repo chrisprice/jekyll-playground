@@ -84,6 +84,29 @@ So now we can combine our solver with the matrix from the previous section to cr
 
 ##Reprojecting using CSS3 Transforms
 
-As we discovered earlier, a 2D transform matrix just isn't going to cut it, so we know we're going to need to use the matrix3d transform function.
+As we discovered earlier, a 2D transform matrix just isn't going to cut it, so we know we're going to need to use the [matrix3d transform function](https://developer.mozilla.org/en-US/docs/CSS/transform-function#matrix3d()). In order to make the reprojection matrix fit the format expected by the browser we'll pre-process the matrix in 2 ways -
+* Transpose the matrix (swap each element with the element on the opposite side of the diagonal)
+* Add a no-op transform for the 3rd dimension (z)
 
+That gives us something like -
+
+```
+  var t = solve(...);
+  [
+    [ t[0], t[3], 0, t[6]],
+    [ t[1], t[4], 0, t[7]],
+    [    0,    0, 1,    0],
+    [ t[2], t[5], 0,    1]
+  ]
+```
+
+Which we can apply directly to an element like so -
+
+```
+  var matrix = new WebKitCSSMatrix();
+  matrix.m11 = t[0], matrix.m12 = t[3], matrix.m13 =    0, matrix.m14 = t[6];
+  matrix.m21 = t[1], matrix.m22 = t[4], matrix.m23 =    0, matrix.m24 = t[7];
+  matrix.m31 =    0, matrix.m32 =    0, matrix.m33 =    1, matrix.m34 =    0;
+  matrix.m41 = t[2], matrix.m42 = t[5], matrix.m43 =    0, matrix.m44 =    1;
+  document.getElementById('a').style.transform = matrix;
 ##Reprojecting using WebGL/three.js
