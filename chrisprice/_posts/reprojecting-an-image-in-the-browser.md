@@ -23,6 +23,18 @@ I'm going to assume everyone could think up a few different techniques for compo
 
 ##Solving
 
+Unfortunately it's time for a bit of maths, but I'll try and keep it brief! We're basically trying to solve a linear system of simulataneous equations, so we can bring to bear some basic matrix techniques to make our lives easier. Specifically we're going to use [Gaussian elimination](http://en.wikipedia.org/wiki/Gaussian_elimination), followed by a bit of back-substitution.
+
+Here's the example from the Wikipedia article -
+
+![Linear system of simulatenous equations](http://upload.wikimedia.org/math/a/f/0/af049b44d89484bcc6114dde940d4edc.png)
+
+![Augmented matrix](http://upload.wikimedia.org/math/a/e/c/aec68ce94e1b6e1ff6ceec8b101fb1a8.png)
+
+![Row echelon form](http://upload.wikimedia.org/math/b/5/c/b5c5821f745a153ecb193c7f329eaad5.png)
+
+![Reduced row echelon form](http://upload.wikimedia.org/math/f/2/9/f2981fd8dffb705698e90dbcfcea25d5.png)
+
 ##Reprojecting using CSS3 Transforms
 
 ##Reprojecting using WebGL/three.js
