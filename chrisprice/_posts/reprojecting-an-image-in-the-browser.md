@@ -4,18 +4,18 @@ Recently whilst browsing Hacker News, I stumbled across an interesting app calle
 
 ![PlaceIt example](placeit-example.png)
 
-Intrieged, I fired up the dev tools to get a peek at what was going on. Expecting to see some hardcore canvas action, I was disappointed to find that it was all being done server-side. "But this is 2013" I hear you gasp in horror, "surely it can be done client-side". I concur - let's see if we can't fix that.
+Intrieged, I fired up the dev tools to get a peek at what was going on. Expecting to see some hardcore canvas action, I was disappointed to find that it was all being done server-side. "But this is 2013" I hear you cry, "surely it can be done client-side". I concur - let's see if we can't fix that.
 
 ##The Basics
 
 An educated guess would suggest to me that the final image is made up of 3 layers -
 * A background image contains the bulk of the picture, with a blank spot where the screenshot will go. 
 * A reprojected screenshot image onto the device in the picture's screen's co-ordinate space (i.e. bent and squashed to fit on the screen) 
-* And that just leaves any glossy reflections or occlusions for the final overlay layer which is again composited on top.
+* And that just leaves any glossy reflections and occlusions (e.g. fingers) for the final overlay layer.
 
 _There's possibility also a separate mask layer, but for the sake of argument let's assume that's folded into the overlay._
 
-I'm going to assume everyone could think up a few different techniques for compositing the layers in a browser and skip to the juicy stuff of reprojecting the screenshot.
+I'm going to assume everyone can think up a few different techniques for compositing the layers in a browser and skip to the juicy stuff of reprojecting the screenshot.
 
 ##2D Transforms and Triangles
 
@@ -64,7 +64,7 @@ So how do we implement this in code? Well there's always the pseudo-code on the 
   // 2, 3, -1
 ```
 
-We're close, all we need to do now is generalise the back-substitution step (the bit that gives us the reduced row echelon form) to support NxN matrices. Again for the adventurous feel free to get your algorithm on while the rest of us hit Google up. I've taken inspiration from the [matrix solver by Stephen R. Schmitt](http://mysite.verizon.net/res148h4j/javascript/script_gauss_elimination3.html) and implemented a generalised back-substitution like so -
+We're close, all we need to do now is generalise the back-substitution step (the bit that gives us the reduced row echelon form) to support NxN matrices. Again if you're feeling adventurous the pattern should be obvious so feel free to get your algorithm on, while the rest of us hit Google up. I've taken inspiration from the [matrix solver by Stephen R. Schmitt](http://mysite.verizon.net/res148h4j/javascript/script_gauss_elimination3.html) and implemented a generalised back-substitution like so -
 
 ```
   var result = [], rowCount = eqns.rows();
@@ -79,6 +79,8 @@ We're close, all we need to do now is generalise the back-substitution step (the
   console.log(result); 
   // [2, 3, -1]
 ```
+
+So now we can combine our solver with the matrix from the previous section to create our reprojection matrix, but how do we actually go about using it?
 
 ##Reprojecting using CSS3 Transforms
 
