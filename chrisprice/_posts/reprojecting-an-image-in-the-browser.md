@@ -45,7 +45,7 @@ And then into reduced row echelon form
 
 The results can then be read off as x = 2, y = 3 and z = -1.
 
-So how do we implement this in code? Well there's always the pseudo-code on the Wikipedia article if you're feeling adventurous, I opted for an existing matrix libraries to do it for me [Sylvester](http://sylvester.jcoglan.com/). I checked out the API docs and found the [toRightTriangular method](http://sylvester.jcoglan.com/api/matrix.html#torighttriangular). Adapting the code given there to match the example above -
+So how do we implement this in code? Well there's always the pseudo-code on the Wikipedia article if you're feeling adventurous, but I opted for an existing matrix library called [Sylvester](http://sylvester.jcoglan.com/). I checked out the API docs and found the [toRightTriangular method](http://sylvester.jcoglan.com/api/matrix.html#torighttriangular). Adapting the code given there to match the example above -
 
 ```
   var equations = $M([
@@ -64,7 +64,7 @@ So how do we implement this in code? Well there's always the pseudo-code on the 
   // 2, 3, -1
 ```
 
-We're close, all we need to do now is generalise the back-substitution step (the bit that gives us the reduced row echelon form) to support NxN matrices. Again if you're feeling adventurous the pattern should be obvious so feel free to get your algorithm on, I made for Google. I've taken inspiration from the [matrix solver by Stephen R. Schmitt](http://mysite.verizon.net/res148h4j/javascript/script_gauss_elimination3.html) and implemented a generalised back-substitution like so -
+We're close, all we need to do now is generalise the back-substitution step (the bit that gives us the reduced row echelon form) to support NxN matrices. Again if you're feeling adventurous the pattern should be obvious so feel free to get your algorithm on, I instead took inspiration from the [matrix solver by Stephen R. Schmitt](http://mysite.verizon.net/res148h4j/javascript/script_gauss_elimination3.html) and implemented a generalised back-substitution like so -
 
 ```
   var result = [], rowCount = eqns.rows();
