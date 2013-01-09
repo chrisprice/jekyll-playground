@@ -13,13 +13,31 @@ An educated guess would suggest to me that the final image is made up of 3 layer
 * A reprojected screenshot image onto the device in the picture's screen's co-ordinate space (i.e. bent and squashed to fit on the screen) 
 * And that just leaves any glossy reflections and occlusions (e.g. fingers) for the final overlay layer.
 
-_There's possibility also a separate mask layer, but for the sake of argument let's assume that's folded into the overlay._
+_There's possibility also a separate mask layer and the background may be part of the overlay, but let's go with what's above for now._
 
 I'm going to assume everyone can think up a few different techniques for compositing the layers in a browser and skip to the juicy stuff of reprojecting the screenshot.
 
 ##2D Transforms and Triangles
 
+I think of a 2D transform, the sort of thing that Context2D.setTransform() or matrix(...) accepts, as something that can transform any triangle in the source image into any triangle in the destination image. That makes it ideal if the shape of your source image is triangular you want it to stay triangular in the destination image -
+
+TRIANGLE TRANSFORM (with points highlighted)
+
+Or even rectangular, so long as the source and destination shape is a parallelogram (opposite sides are parallel) -
+
+PARALLELOGRAM TRANSFORM
+
+But not so great if your destination shape isn't a parallelogram -
+
+MISALIGNED PROJECTION
+
+As you can see the bottom right of the screenshot is clearly in the wrong position. Now it would be possible to cut the source image up into a grid of smaller triangles and project each one with an appropriate transform to get an approximation of the real transform. Obviously, two triangles would leave a very visible join down the center of the image but as you increase the number of triangles you should get better and better results. 
+
+However, wouldn't it be nice if we could do it in just one operation...
+
 ##3D Transforms and Quadrangles (Wonky Rectangles)
+
+
 
 ##Solving
 
