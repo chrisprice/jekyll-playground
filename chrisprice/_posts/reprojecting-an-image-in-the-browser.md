@@ -19,7 +19,7 @@ I'm going to assume everyone can think up a few different techniques for composi
 
 ##2D Transforms and Triangles
 
-I think of a 2D transform, the sort of thing that Context2D.setTransform() or matrix(...) accepts, as something that can transform any triangle in the source image into any triangle in the destination image. That makes it ideal if the shape of your source image is triangular you want it to stay triangular in the destination image -
+I think of a 2D transform, the sort of thing that Context2D.setTransform() or matrix(...) accepts, as something that can transform any triangle in the source image, into any triangle in the destination image. That makes it ideal if the shape of your source image is triangular and you want it to stay triangular in the destination image -
 
 TRIANGLE TRANSFORM (with points highlighted)
 
@@ -37,11 +37,15 @@ However, wouldn't it be nice if we could do it in just one operation...
 
 ##3D Transforms and Quadrangles (Wonky Rectangles)
 
+You can think of a 3D transform, the sort of thing that THREE.js or matrix3d(...) accepts, as letting you transform any quadrangle/quadliteral (4-sided shape, opposite sides don't have to be parallel) in the source image, into any other quadrangle in the destination image -
 
+ASSWOME PROJECTION!
+
+Great success! But how do we calculate the matrix...
 
 ##Solving
 
-Unfortunately it's time for a bit of maths, but I'll try and keep it brief! We're trying to solve a linear system of simulataneous equations, so we can bring to bear some basic matrix techniques to make our lives easier. Specifically we're going to use [Gaussian elimination](http://en.wikipedia.org/wiki/Gaussian_elimination), followed by a bit of back-substitution.
+It's time for a bit of maths, but I'll try and keep it brief! We're trying to solve a linear system of simulataneous equations, so we can bring to bear some basic matrix techniques to make our lives easier. Specifically we're going to use [Gaussian elimination](http://en.wikipedia.org/wiki/Gaussian_elimination), followed by a bit of back-substitution.
 
 Here's the Gaussian elimination example from the Wikipedia article, this is a 3x3 matrix but it's generalisable upto NxN -
 
