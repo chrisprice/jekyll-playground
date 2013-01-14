@@ -148,9 +148,27 @@ The problem is that the browser is taking the origin of the image to be at the c
 
 ##Reprojecting using WebGL/three.js
 
-First of all we need to set the scene up, 
+First of all we need to set the scene up, we're going to use the images to texture PlaneGeometries which we'll subsequently scale to match the image dimensions -
 
-The final step is to use an orthographic camera, so that we don't add any additional depth projection, to snapshot the scene to the canvas -
+```
+  var texture = new THREE.Texture(image);
+  var material = new THREE.MeshBasicMaterial({
+    map : texture
+  });
+  var geometry = new THREE.PlaneGeometry(1, 1);
+  geometry.applyMatrix(new THREE.Matrix4().translate(new THREE.Vector3(0.5, 0.5, zIndex)));
+  return new THREE.Mesh(geometry, material);
+```
+
+To apply the transform, we just need to feed the elements into the Object3Ds transform matrix and then tell THREE.js that it should recalculate -
+
+```
+  transform.matrix.elements = Array.prototype.concat.apply([], this.transform);
+  // force an update - https://github.com/mrdoob/three.js/wiki/Using-Matrices-&-Object3Ds-in-THREE
+  transform.matrixWorldNeedsUpdate = true;
+```
+
+The final step is to setup an orthographic camera, so that we don't add any additional depth projection, to snapshot the scene to the canvas -
 
 ```
   var camera = new THREE.OrthographicCamera(0, 1, 1, 0);
