@@ -19,7 +19,7 @@ I'm going to assume everyone can think up a few different techniques for composi
 
 ##2D Transforms and Triangles
 
-I think of a 2D transform, the sort of thing that Context2D.setTransform() or matrix(...) accepts, as something that can transform any triangle in the source image, into any triangle in the destination image. That makes it ideal if the shape of your source image is triangular and you want it to stay triangular in the destination image -
+I think of a 2D transform, the sort of thing that Context2D's setTransform(...) or CSS3 transform's matrix(...) accepts, as something that can transform any triangle in the source image, into any triangle in the destination image. That makes it ideal if the shape of your source image is triangular and you want it to stay triangular in the destination image -
 
 TRIANGLE TRANSFORM (with points highlighted)
 
@@ -37,7 +37,7 @@ However, wouldn't it be nice if we could do it in just one operation...
 
 ##3D Transforms and Quadrangles (Wonky Rectangles)
 
-You can think of a 3D transform, the sort of thing that THREE.js or matrix3d(...) accepts, as letting you transform any quadrangle/quadliteral (4-sided shape, opposite sides don't have to be parallel) in the source image, into any other quadrangle in the destination image -
+You can think of a 3D transform, the sort of thing that THREE.js's Matrix4.set(...) or CSS3 transform's matrix3d(...) accepts, as letting you transform any quadrangle/quadliteral (4-sided shape, opposite sides don't have to be parallel) in the source image, into any other quadrangle in the destination image -
 
 ASSWOME PROJECTION!
 
@@ -147,3 +147,20 @@ The problem is that the browser is taking the origin of the image to be at the c
 #FIXED
 
 ##Reprojecting using WebGL/three.js
+
+First of all we need to set the scene up, 
+
+The final step is to use an orthographic camera, so that we don't add any additional depth projection, to snapshot the scene to the canvas -
+
+```
+  var camera = new THREE.OrthographicCamera(0, 1, 1, 0);
+  camera.position.z = 100;
+  scene.add(camera);
+  var renderer = new THREE.WebGLRenderer({
+    canvas : canvas,
+    antialias: true,
+    // fixes blank image when dragging the canvas
+    preserveDrawingBuffer: true
+  });
+  renderer.render(scene, camera);
+```
