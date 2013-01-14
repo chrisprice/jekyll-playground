@@ -146,6 +146,8 @@ The problem is that the browser is taking the origin of the image to be at the c
 
 #FIXED
 
+Unfortunately there's still the problem that we can't collapse the images into a single image for easy saving, if we leave it like this user's are going to need to screenshot it. If only we could get it onto a canvas we could use toDataUrl()...
+
 ##Reprojecting using WebGL/three.js
 
 First of all we need to set the scene up, we're going to use the images to texture PlaneGeometries which we'll subsequently scale to match the image dimensions -
