@@ -184,9 +184,7 @@ The final step is to setup an orthographic camera, so that we don't add any addi
   scene.add(camera);
   var renderer = new THREE.WebGLRenderer({
     canvas : canvas,
-    antialias: true,
-    // fixes blank image when dragging the canvas
-    preserveDrawingBuffer: true
+    antialias: true
   });
   renderer.render(scene, camera);
 ```
