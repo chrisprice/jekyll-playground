@@ -108,7 +108,7 @@ _As is always the case once you know the right terms, finding the [generalised s
 
 ##Reprojecting using CSS3 Transforms
 
-As we discovered earlier, a 2D transform matrix just isn't going to cut it, so we know we're going to need to use the [matrix3d transform function](https://developer.mozilla.org/en-US/docs/CSS/transform-function#matrix3d()). In order to make the reprojection matrix fit the format expected by the browser we'll pre-process the matrix in 2 ways -
+As we discovered earlier, a 2D transform matrix just isn't going to cut it, so we know we're going to need to use the [matrix3d transform function](https://developer.mozilla.org/en-US/docs/CSS/transform-function#matrix3d%28%29). In order to make the reprojection matrix fit the format expected by the browser we'll pre-process the matrix in 2 ways -
 * Transpose the matrix (swap each element with the element on the opposite side of the diagonal)
 * Add a no-op transform for the 3rd dimension (z)
 
@@ -165,7 +165,13 @@ First of all we need to set the scene up, we're going to use the images to textu
 To apply the transform, we just need to feed the elements into the Object3Ds transform matrix and then tell THREE.js that it should recalculate -
 
 ```
-  transform.matrix.elements = Array.prototype.concat.apply([], this.transform);
+  var t = solve(...);
+  transform.matrix.elements = [
+    t[0], t[3], 0, t[6],
+    t[1], t[4], 0, t[7],
+       0,    0, 1,    0,
+    t[2], t[5], 0,    1
+  ];
   // force an update - https://github.com/mrdoob/three.js/wiki/Using-Matrices-&-Object3Ds-in-THREE
   transform.matrixWorldNeedsUpdate = true;
 ```
